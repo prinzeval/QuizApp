@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQuiz</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <img src="icon.png" alt="SmartQuiz Logo" class="logo">
+        <h1>SmartQuiz</h1>
+        <p class="tagline">Turn Text into Interactive Quizzes</p>
+    </header>
+    
+    <!-- Prompt Instruction Section -->
+    <section class="prompt-section">
+        <h3>How to Generate Quiz Questions</h3>
+        <p>Copy the following prompt, customize the number of questions, and paste it into ChatGPT to generate quiz content.</p>
+        <div class="prompt-container">
+            <textarea id="promptText" readonly>
+Upon receiving a PDF document, extract the relevant information to generate a set of 5 multiple-choice questions in the following format: 
+
+1. Question Text?
+A) Option A
+B) Option B
+C) Option C
+D) Option D
+E) Option E
+Answer: Correct Option
+
+Example usage:
+1. What is the primary inorganic component of bone that provides its hardness and strength?
+A) Collagen
+B) Osteoid
+C) Calcium hydroxyapatite
+D) Sodium chloride
+E) Magnesium oxide
+Answer: C
+            </textarea>
+            <button onclick="copyPrompt()" class="btn-copy">Copy Prompt</button>
+        </div>
+    </section>
+    
+    <!-- Main Content -->
+    <main class="container">
+        <p class="subtitle">Convert Text to Quiz & Test Your Knowledge</p>
+        
+        <!-- Text Input for Questions -->
+        <textarea id="textInput" placeholder="Paste your questions here..." rows="8"></textarea>
+        
+        <!-- Button to generate quiz -->
+        <button onclick="generateQuiz()" class="btn-primary">Generate Quiz</button>
+        
+        <!-- Quiz Container -->
+        <div id="quizContainer" style="display: none;">
+            <h2>Your Quiz</h2>
+            <form id="quizForm"></form>
+            <button onclick="submitQuiz()" class="btn-submit">Submit Quiz</button>
+            <div id="results"></div>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2024 SmartQuiz. All rights reserved.</p>
+        <p>Inspired by Nana ❤️ | Contact me <a href="mailto:valentineallpowers@gmail.com">Here</a> but what for 🙂 </p>
+    </footer>
+    
+    <script src="script.js"></script>
+</body>
+</html>
