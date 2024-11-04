@@ -20,24 +20,28 @@
         <p>Copy the following prompt, customize the number of questions, and paste it into ChatGPT to generate quiz content.</p>
         <div class="prompt-container">
             <textarea id="promptText" readonly>
-Upon receiving a PDF document, extract the relevant information to generate a set of 5 multiple-choice questions in the following format: 
+                Upon receiving a PDF document, extract the relevant information to generate a set of 5 multiple-choice questions in the following format:   (make sure the option from A starts from a newline ) 
 
-1. Question Text?
-A) Option A
-B) Option B
-C) Option C
-D) Option D
-E) Option E
-Answer: Correct Option
-
-Example usage:
-1. What is the primary inorganic component of bone that provides its hardness and strength?
-A) Collagen
-B) Osteoid
-C) Calcium hydroxyapatite
-D) Sodium chloride
-E) Magnesium oxide
-Answer: C
+                1. Question Text?
+                
+                
+                (A) Option A 
+                (B) Option B 
+                (C) Option C 
+                (D) Option D 
+                (E) Option E 
+                Answer: Correct Option
+                
+                Example usage:
+                1. What is the primary inorganic component of bone that provides its hardness and strength?
+                
+                
+                (A) Collagen 
+                B) Osteoid
+                (C) Calcium hydroxyapatite 
+                (D) Sodium chloride 
+                (E) Magnesium oxide 
+                Answer: C
             </textarea>
             <button onclick="copyPrompt()" class="btn-copy">Copy Prompt</button>
         </div>
