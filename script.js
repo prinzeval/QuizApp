@@ -88,23 +88,42 @@ function submitQuiz() {
         const selectedOption = document.querySelector(`input[name="question${index}"]:checked`);
         const questionDiv = document.getElementsByClassName("question")[index];
 
+        // Clear previous results
+        questionDiv.style.backgroundColor = "";  // Reset background color
+        questionDiv.style.border = "";  // Reset border color
+        const previousAnswer = questionDiv.querySelector(".correct-answer");
+        if (previousAnswer) {
+            previousAnswer.remove();
+        }
+
         if (selectedOption) {
             if (selectedOption.value === q.answer) {
                 score++;
-                questionDiv.classList.add("correct");
+                questionDiv.style.backgroundColor = "#e0f7e9";  // Light green for correct
+                questionDiv.style.border = "2px solid #4CAF50";  // Green border
             } else {
-                questionDiv.classList.add("incorrect");
+                questionDiv.style.backgroundColor = "#ffebee";  // Light red for incorrect
+                questionDiv.style.border = "2px solid #f44336";  // Red border
+
+                // Show the correct answer
+                const correctAnswer = document.createElement("p");
+                correctAnswer.textContent = `Correct Answer: ${q.answer}`;
+                correctAnswer.style.color = "#4CAF50";  // Green text for correct answer
+                correctAnswer.style.fontWeight = "bold";
+                correctAnswer.classList.add("correct-answer");
+                questionDiv.appendChild(correctAnswer);
             }
         } else {
-            questionDiv.classList.add("incorrect");
+            questionDiv.style.backgroundColor = "#ffebee";  // Light red for unanswered
+            questionDiv.style.border = "2px solid #f44336";  // Red border
+            const correctAnswer = document.createElement("p");
+            correctAnswer.textContent = `Correct Answer: ${q.answer}`;
+            correctAnswer.style.color = "#4CAF50";
+            correctAnswer.style.fontWeight = "bold";
+            correctAnswer.classList.add("correct-answer");
+            questionDiv.appendChild(correctAnswer);
         }
     });
 
     resultsDiv.textContent = `Your score: ${score} / ${window.questions.length}`;
-}
-function copyPrompt() {
-    const promptText = document.getElementById("promptText");
-    promptText.select();
-    document.execCommand("copy");
-    alert("Prompt copied to clipboard!");
 }
