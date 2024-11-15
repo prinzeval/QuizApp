@@ -17,30 +17,28 @@
     <!-- Prompt Instruction Section -->
     <section class="prompt-section">
         <h3>How to Generate Quiz Questions</h3>
-        <p>Copy the following prompt, customize the number of questions, and paste it into ChatGPT and attach your pdf to generate quiz content.</p>
+        <p>Copy the following prompt, customize the number of questions, and paste it into ChatGPT and attach your PDF to generate quiz content.</p>
         <div class="prompt-container">
             <textarea id="promptText" readonly>
-                Upon receiving a PDF document, extract the relevant information to generate a set of 50 Difficult multiple-choice questions in the following format:   (make sure the option from A starts from a newline ) 
+                Upon receiving a PDF document, extract the relevant information to generate a set of 50 difficult multiple-choice questions in the following format: 
 
                 1. Question Text?
                 
-                
-                (A) Option A 
-                (B) Option B 
-                (C) Option C 
-                (D) Option D 
-                (E) Option E 
+                A) Option A
+                B) Option B
+                C) Option C
+                D) Option D
+                E) Option E
                 Answer: Correct Option
                 
                 Example usage:
                 1. What is the primary inorganic component of bone that provides its hardness and strength?
                 
-                
-                (A) Collagen 
-                (B) Osteoid
-                (C) Calcium hydroxyapatite 
-                (D) Sodium chloride 
-                (E) Magnesium oxide 
+                A) Collagen
+                B) Osteoid
+                C) Calcium hydroxyapatite
+                D) Sodium chloride
+                E) Magnesium oxide
                 Answer: C
             </textarea>
             <button onclick="copyPrompt()" class="btn-copy">Copy Prompt</button>
@@ -62,16 +60,15 @@
             <h2>Your Quiz</h2>
             <form id="quizForm"></form>
             <button onclick="submitQuiz()" class="btn-submit">Submit Quiz</button>
-            <div id="results"></div>
+            <button onclick="resetQuiz()" class="btn-reset">Reset Quiz</button>
+            <div id="results" aria-live="polite"></div>
         </div>
     </main>
     
-
-
-    <!-- Footer aspect  -->
+    <!-- Footer -->
     <footer>
         <p>&copy; 2024 SmartQuiz. All rights reserved.</p>
-        <p>Inspired by Nana ❤️  Made by Valentine  | Contact me <a href="mailto:valentineallpowers@gmail.com">Here</a> but for what ? 🙂 </p>
+        <p>Inspired by Nana ❤️  Made by Valentine  | Contact me <a href="mailto:valentineallpowers@gmail.com">Here</a> but for what? 🙂</p>
     </footer>
     
     <script src="script.js"></script>
