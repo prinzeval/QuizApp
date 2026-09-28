@@ -7,6 +7,7 @@ import type { QuizQuestion, QuizSummary } from "../../lib/learningApi.ts";
 import { QuestionView } from "./QuestionView.tsx";
 import { FinishConfirm, RunnerHeader, focusOption, isActivatable, usePatchAttempt, useQuizKeys, type AttemptData } from "./playerParts.tsx";
 import { keyToOption } from "./quizUtils.ts";
+import { isPictureAnswerComplete } from "./PictureQuestion.tsx";
 
 interface ExamRunnerProps {
   roomId: string;
@@ -42,7 +43,10 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
 
   const question = questions[index];
   const value = responses[question.id] ?? "";
-  const isAnswered = (id: string) => !!responses[id]?.trim();
+  const spotsOf = (id: string) => questions.find(q => q.id === id)?.figure?.zones?.length ?? 0;
+  const typeOf = (id: string) => questions.find(q => q.id === id)?.type ?? "";
+  // A half-labelled picture isn't an answer yet.
+  const isAnswered = (id: string) => isPictureAnswerComplete(typeOf(id), responses[id] ?? "", spotsOf(id));
   const answeredCount = questions.filter(q => isAnswered(q.id)).length;
   const isLast = index === questions.length - 1;
 
@@ -136,6 +140,9 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
           save(id, next);
         }, TYPE_DEBOUNCE_MS),
       );
+    } else if (question.type === "label_image") {
+      // Saved once every label is placed; until then any earlier answer is cleared.
+      save(question.id, isPictureAnswerComplete("label_image", next, question.figure?.zones?.length ?? 0) ? next : "");
     } else {
       save(question.id, next);
     }
@@ -238,6 +245,7 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
 
           <Stack gap="xl">
             <QuestionView
+              roomId={roomId}
               key={question.id}
               question={question}
               value={value}
@@ -275,7 +283,7 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
               </Button>
               <Text size="xs" c="dimmed" visibleFrom="sm" ta="center">
                 <Kbd size="xs">←</Kbd> <Kbd size="xs">→</Kbd> to move
-                {question.type !== "fill_blank" && (
+                {(question.type === "multiple_choice" || question.type === "true_false") && (
                   <>
                     {" "}· <Kbd size="xs">{question.type === "true_false" ? "T" : "1"}</Kbd>–
                     <Kbd size="xs">{question.type === "true_false" ? "F" : "4"}</Kbd> to choose

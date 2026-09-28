@@ -34,7 +34,96 @@ export interface Material {
   createdAt: string;
   processedAt: string | null;
   chunkCount: number;
+  /** Pictures are found on request (Studio, picture quizzes): null until someone asks. */
+  figuresStatus: "detecting" | "ready" | "failed" | null;
+  figuresError: string | null;
+  figureCount: number;
 }
+
+/** [x, y, width, height], each 0-1 relative to the page (or picture) the figure is on. */
+export type Box = [number, number, number, number];
+
+export interface FigureLabel {
+  text: string;
+  /** Where the label is printed. */
+  textBox: Box;
+  /** The part it names. */
+  targetBox: Box;
+}
+
+/** Where a figure sits in its file: enough to crop it out of the original. */
+export interface FigurePlacement {
+  id: string;
+  materialId: string;
+  materialKind: MaterialKind;
+  /** PDF page; null for a photo material or a picture embedded in Word/PowerPoint. */
+  page: number | null;
+  /** True when the picture has its own stored copy (embedded in Word/PowerPoint). */
+  hasImage: boolean;
+  /** Width / height of the page (or picture) the boxes are relative to. */
+  aspect: number;
+  box: Box;
+}
+
+/** A figure with its answers: for studying (image cards) and reviews. */
+export interface Figure extends FigurePlacement {
+  materialTitle: string;
+  location: string | null;
+  kind: "photo" | "diagram" | "chart" | "table" | "other" | "group";
+  title: string;
+  caption: string | null;
+  captionBox: Box | null;
+  description: string;
+  labels: FigureLabel[];
+}
+
+/** A figure on a question still being answered: where to crop, what to cover. No answers. */
+export interface QuestionFigure extends FigurePlacement {
+  /** Printed captions and labels, covered until the answer is shown. */
+  masks: Box[];
+  /** Drag-the-labels: the spots to drop labels on (spot i is label i). */
+  zones: Box[] | null;
+}
+
+export type StudioKind = "image_cards" | "mind_map";
+export type StudioStatus = "generating" | "ready" | "failed";
+
+export interface StudioItem {
+  id: string;
+  roomId: string;
+  kind: StudioKind;
+  title: string;
+  status: StudioStatus;
+  error: string | null;
+  createdBy: string | null;
+  creatorName: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** While finding pictures: pages (or pictures) looked at so far. */
+  progress: { done: number; total: number } | null;
+  materials: { id: string; title: string }[];
+  /** Image cards: how many pictures; mind map: how many topics. */
+  size: number;
+}
+
+export interface MindMapNode {
+  id: string;
+  label: string;
+  summary: string;
+  parentId: string | null;
+  sources: { chunkId: string; materialId: string; materialTitle: string; location: string | null }[];
+  figureIds: string[];
+}
+
+export interface MindMapLink {
+  from: string;
+  to: string;
+  label: string;
+}
+
+export type StudioItemDetail =
+  | { item: StudioItem & { kind: "image_cards" }; figures: Figure[] }
+  | { item: StudioItem & { kind: "mind_map" }; map: { nodes: MindMapNode[]; links: MindMapLink[] }; figures: Figure[] };
 
 export interface MaterialChunk {
   id: string;
@@ -62,7 +151,10 @@ export interface InvitePreview {
   invitedBy: { name: string; avatarUrl: string | null } | null;
 }
 
-export type QuestionType = "multiple_choice" | "true_false" | "fill_blank";
+/** What a quiz can ask for; "picture" questions are built on the files' figures. */
+export type RequestableType = "multiple_choice" | "true_false" | "fill_blank" | "picture";
+/** A question's own type: drag the labels onto a picture, or tap the named part. */
+export type QuestionType = "multiple_choice" | "true_false" | "fill_blank" | "label_image" | "locate_image";
 export type Difficulty = "easy" | "medium" | "hard";
 export type QuizMode = "practice" | "exam";
 export type QuizStatus = "generating" | "ready" | "failed";
@@ -74,7 +166,7 @@ export interface QuizSummary {
   status: QuizStatus;
   difficulty: Difficulty;
   requestedCount: number;
-  questionTypes: QuestionType[];
+  questionTypes: RequestableType[];
   focus: string | null;
   error: string | null;
   createdBy: string | null;
@@ -93,7 +185,9 @@ export interface QuizQuestion {
   type: QuestionType;
   prompt: string;
   options: string[] | null;
-  topic: string;
+  /** Hidden (null) on picture questions while answering: it's often the answer. */
+  topic: string | null;
+  figure: QuestionFigure | null;
 }
 
 export interface QuizAttempt {
@@ -113,7 +207,10 @@ export interface QuestionSource {
 }
 
 /** A question with its answer revealed (practice feedback or finished attempt). */
-export interface QuestionReview extends QuizQuestion {
+export interface QuestionReview extends Omit<QuizQuestion, "figure" | "topic"> {
+  topic: string;
+  /** The whole figure, labels and targets included. */
+  figure: Figure | null;
   correctIndex: number | null;
   acceptedAnswers: string[] | null;
   explanation: string;
@@ -134,7 +231,7 @@ export interface NewQuizInput {
   materialIds: string[];
   questionCount: number;
   difficulty: Difficulty;
-  questionTypes: QuestionType[];
+  questionTypes: RequestableType[];
   focus?: string;
 }
 
@@ -217,6 +314,15 @@ export async function fetchMaterialFile(roomId: string, materialId: string): Pro
   return response.blob();
 }
 
+/** A picture embedded in a room's Word/PowerPoint file (auth needed, so a blob). */
+export async function fetchFigureImage(roomId: string, figureId: string): Promise<Blob> {
+  const response = await fetch(`${BASE_URL}${room(roomId)}/figures/${figureId}/image`, {
+    headers: { Authorization: `Bearer ${tokenStore.get() ?? ""}` },
+  });
+  if (!response.ok) throw new ApiError("Couldn't load this picture.", response.status);
+  return response.blob();
+}
+
 export const learningApi = {
   // materials
   materials: (roomId: string) => request<{ materials: Material[] }>(`${room(roomId)}/materials`),
@@ -255,6 +361,14 @@ export const learningApi = {
     ),
   completeAttempt: (roomId: string, quizId: string, attemptId: string) =>
     request<{ attempt: QuizAttempt; questions: QuestionReview[] }>(`${room(roomId)}/quizzes/${quizId}/attempts/${attemptId}/complete`, json("POST")),
+
+  // studio
+  studioItems: (roomId: string) => request<{ items: StudioItem[] }>(`${room(roomId)}/studio`),
+  studioItem: (roomId: string, itemId: string) => request<StudioItemDetail>(`${room(roomId)}/studio/${itemId}`),
+  createStudioItem: (roomId: string, input: { kind: StudioKind; materialIds: string[] }) =>
+    request<{ item: StudioItem }>(`${room(roomId)}/studio`, json("POST", input)),
+  deleteStudioItem: (roomId: string, itemId: string) => request<unknown>(`${room(roomId)}/studio/${itemId}`, json("DELETE")),
+  retryStudioItem: (roomId: string, itemId: string) => request<{ item: StudioItem }>(`${room(roomId)}/studio/${itemId}/retry`, json("POST")),
 
   // progress
   progress: (roomId: string) => request<Progress>(`${room(roomId)}/progress`),

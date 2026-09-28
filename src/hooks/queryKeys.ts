@@ -8,6 +8,10 @@ export const queryKeys = {
   quizzes: (roomId: string) => ["rooms", roomId, "quizzes"] as const,
   quiz: (roomId: string, quizId: string) => ["rooms", roomId, "quizzes", quizId] as const,
   attempt: (roomId: string, quizId: string, attemptId: string) => ["rooms", roomId, "quizzes", quizId, "attempts", attemptId] as const,
+  studio: (roomId: string) => ["rooms", roomId, "studio"] as const,
+  studioItem: (roomId: string, itemId: string) => ["rooms", roomId, "studio", itemId] as const,
+  // Pictures from Word/PowerPoint files never change either.
+  figureImage: (roomId: string, figureId: string) => ["figureImage", roomId, figureId] as const,
   progress: (roomId: string) => ["rooms", roomId, "progress"] as const,
   conversations: (roomId: string) => ["rooms", roomId, "tutor"] as const,
   conversation: (roomId: string, conversationId: string) => ["rooms", roomId, "tutor", conversationId] as const,

@@ -53,6 +53,11 @@ export function useRoomLive(roomId: string): PresenceUser[] {
       queryClient.invalidateQueries({ queryKey: queryKeys.quiz(roomId, quizId), exact: true });
     });
 
+    const onStudio = mine(({ itemId }: { roomId: string; itemId: string }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.studio(roomId), exact: true });
+      queryClient.invalidateQueries({ queryKey: queryKeys.studioItem(roomId, itemId), exact: true });
+    });
+
     socket.on("connect", join);
     socket.on("room:presence", onPresence);
     socket.on("room:updated", onRoom);
@@ -63,6 +68,8 @@ export function useRoomLive(roomId: string): PresenceUser[] {
     socket.on("material:deleted", onMaterialDeleted);
     socket.on("quiz:updated", onQuiz);
     socket.on("quiz:deleted", onQuiz);
+    socket.on("studio:updated", onStudio);
+    socket.on("studio:deleted", onStudio);
     if (socket.connected) join();
 
     return () => {
@@ -77,6 +84,8 @@ export function useRoomLive(roomId: string): PresenceUser[] {
       socket.off("material:deleted", onMaterialDeleted);
       socket.off("quiz:updated", onQuiz);
       socket.off("quiz:deleted", onQuiz);
+      socket.off("studio:updated", onStudio);
+      socket.off("studio:deleted", onStudio);
       setPresent([]);
     };
   }, [socket, roomId, queryClient, navigate]);

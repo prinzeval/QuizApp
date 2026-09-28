@@ -1,35 +1,22 @@
 import { useState, type FormEvent } from "react";
 import {
   Alert,
-  Anchor,
   Button,
-  Checkbox,
   Chip,
   Group,
   Input,
-  ScrollArea,
   SegmentedControl,
-  Skeleton,
   Slider,
   Stack,
   Text,
   TextInput,
-  ThemeIcon,
 } from "@mantine/core";
-import { IconAlertCircle, IconFileText, IconFileTypeDocx, IconFileTypePdf, IconFileTypePpt, IconPhoto, IconSparkles } from "@tabler/icons-react";
+import { IconAlertCircle, IconSparkles } from "@tabler/icons-react";
 import { useCreateQuiz, useMaterials } from "../../hooks/learning.ts";
 import { ApiError, type FieldErrors } from "../../lib/api.ts";
-import type { Difficulty, MaterialKind, QuestionType, QuizSummary } from "../../lib/learningApi.ts";
-import { plural } from "../../lib/format.ts";
-import { COUNT_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, QUESTION_TYPES, TYPE_LABEL } from "./quizUtils.ts";
-
-const KIND_ICON: Record<MaterialKind, typeof IconFileText> = {
-  pdf: IconFileTypePdf,
-  docx: IconFileTypeDocx,
-  pptx: IconFileTypePpt,
-  image: IconPhoto,
-  text: IconFileText,
-};
+import type { Difficulty, QuizSummary, RequestableType } from "../../lib/learningApi.ts";
+import { MaterialPicker } from "../materials/MaterialPicker.tsx";
+import { COUNT_LIMITS, DEFAULT_TYPES, DIFFICULTIES, DIFFICULTY_LABEL, QUESTION_TYPES, TYPE_LABEL } from "./quizUtils.ts";
 
 interface NewQuizFormProps {
   roomId: string;
@@ -47,14 +34,12 @@ export function NewQuizForm({ roomId, initialFocus = "", onCancel, onCreated, on
   const [picked, setPicked] = useState<string[]>([]);
   const [count, setCount] = useState(10);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
-  const [types, setTypes] = useState<QuestionType[]>([...QUESTION_TYPES]);
+  const [types, setTypes] = useState<RequestableType[]>([...DEFAULT_TYPES]);
   const [focus, setFocus] = useState(initialFocus.slice(0, 200));
   const [title, setTitle] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
 
-  const all = materials.data?.materials ?? [];
-  const ready = all.filter(m => m.status === "ready");
-  const pending = all.filter(m => m.status === "queued" || m.status === "processing").length;
+  const ready = (materials.data?.materials ?? []).filter(m => m.status === "ready");
   const noneReady = materials.isSuccess && ready.length === 0;
 
   const submit = async (event: FormEvent) => {
@@ -92,80 +77,16 @@ export function NewQuizForm({ roomId, initialFocus = "", onCancel, onCreated, on
           </Alert>
         )}
 
-        <Input.Wrapper
-          label="Study from"
+        <MaterialPicker
+          materials={materials}
+          scope={scope}
+          onScopeChange={setScope}
+          picked={picked}
+          onPickedChange={setPicked}
           error={errors.materialIds}
-          description={ready.length > 0 ? "Questions are written only from these notes." : undefined}
-        >
-          {materials.isPending ? (
-            <Skeleton h={36} mt={6} />
-          ) : materials.isError ? (
-            <Alert color="red" variant="light" mt={6}>
-              Couldn't load materials.{" "}
-              <Anchor component="button" type="button" size="sm" onClick={() => materials.refetch()}>
-                Try again
-              </Anchor>
-            </Alert>
-          ) : noneReady ? (
-            <Alert color="clay" variant="light" mt={6} title="No materials ready yet" data-testid="no-materials">
-              <Text size="sm">
-                {pending > 0
-                  ? `${plural(pending, "file")} still processing. You can create a quiz as soon as ${pending === 1 ? "it's" : "they're"} ready.`
-                  : "Upload your notes first. Quizzes are written from them."}
-              </Text>
-              <Anchor component="button" type="button" size="sm" fw={600} mt={6} onClick={onGoToMaterials}>
-                Go to Materials →
-              </Anchor>
-            </Alert>
-          ) : (
-            <Stack gap="xs" mt={6}>
-              <SegmentedControl
-                value={scope}
-                onChange={value => setScope(value as "all" | "pick")}
-                data={[
-                  { value: "all", label: `All materials (${ready.length})` },
-                  { value: "pick", label: "Choose…" },
-                ]}
-                fullWidth
-              />
-              {scope === "pick" && (
-                <ScrollArea.Autosize mah={220} type="auto" offsetScrollbars>
-                  <Checkbox.Group value={picked} onChange={setPicked} aria-label="Materials">
-                    <Stack gap={6}>
-                      {ready.map(material => {
-                        const Icon = KIND_ICON[material.kind];
-                        return (
-                          <Checkbox.Card key={material.id} value={material.id} radius="md" p="sm" data-testid="material-choice">
-                            <Group wrap="nowrap" gap="sm">
-                              <Checkbox.Indicator />
-                              <ThemeIcon variant="light" color="gray" size={32} radius="md">
-                                <Icon size={18} stroke={1.6} />
-                              </ThemeIcon>
-                              <div style={{ minWidth: 0 }}>
-                                <Text size="sm" fw={500} lineClamp={1} style={{ overflowWrap: "anywhere" }}>
-                                  {material.title}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                  {material.kind.toUpperCase()}
-                                  {material.pageCount ? ` · ${plural(material.pageCount, "page")}` : ""}
-                                </Text>
-                              </div>
-                            </Group>
-                          </Checkbox.Card>
-                        );
-                      })}
-                    </Stack>
-                  </Checkbox.Group>
-                </ScrollArea.Autosize>
-              )}
-              {pending > 0 && (
-                <Text size="xs" c="dimmed">
-                  {plural(pending, "more file")} still processing. {pending === 1 ? "It" : "They"}'ll show up here when ready.
-                </Text>
-              )}
-            </Stack>
-          )}
-        </Input.Wrapper>
+          description="Questions are written only from these notes."
+          onGoToMaterials={onGoToMaterials}
+        />
 
         <Input.Wrapper
           label={
@@ -206,18 +127,30 @@ export function NewQuizForm({ roomId, initialFocus = "", onCancel, onCreated, on
             multiple
             value={types}
             onChange={value => {
-              setTypes(value as QuestionType[]);
+              setTypes(value as RequestableType[]);
               if (value.length) setErrors(({ questionTypes: _, ...rest }) => rest);
             }}
           >
             <Group gap="xs" mt={8}>
               {QUESTION_TYPES.map(type => (
-                <Chip key={type} value={type} size="md" variant="light" data-testid={`type-${type}`}>
+                <Chip
+                  key={type}
+                  value={type}
+                  size="md"
+                  variant="light"
+                  data-testid={`type-${type}`}
+                >
                   {TYPE_LABEL[type]}
                 </Chip>
               ))}
             </Group>
           </Chip.Group>
+          {types.includes("picture") && (
+            <Text size="xs" c="dimmed" mt={8} data-testid="picture-note">
+              Uses the real diagrams and photos from your files: label them, find parts on them, or answer questions about them. The first time,
+              the AI looks through each file's pages for pictures, so it can take a minute or two.
+            </Text>
+          )}
         </Input.Wrapper>
 
         <TextInput

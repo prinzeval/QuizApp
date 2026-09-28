@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { learningApi, uploadMaterials, type NewQuizInput, type QuizMode } from "../lib/learningApi.ts";
+import { learningApi, uploadMaterials, type NewQuizInput, type QuizMode, type StudioKind } from "../lib/learningApi.ts";
 import { queryKeys } from "./queryKeys.ts";
 
 /* -------------------------------------------------------------- materials */
@@ -162,6 +162,40 @@ export function useCompleteAttempt(roomId: string, quizId: string, attemptId: st
       queryClient.invalidateQueries({ queryKey: queryKeys.quizzes(roomId), exact: true });
       queryClient.invalidateQueries({ queryKey: queryKeys.progress(roomId), exact: true });
     },
+  });
+}
+
+/* ----------------------------------------------------------------- studio */
+
+export function useStudioItems(roomId: string) {
+  return useQuery({ queryKey: queryKeys.studio(roomId), queryFn: () => learningApi.studioItems(roomId) });
+}
+
+export function useStudioItem(roomId: string, itemId: string) {
+  return useQuery({ queryKey: queryKeys.studioItem(roomId, itemId), queryFn: () => learningApi.studioItem(roomId, itemId) });
+}
+
+export function useCreateStudioItem(roomId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { kind: StudioKind; materialIds: string[] }) => learningApi.createStudioItem(roomId, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.studio(roomId), exact: true }),
+  });
+}
+
+export function useDeleteStudioItem(roomId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => learningApi.deleteStudioItem(roomId, itemId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.studio(roomId), exact: true }),
+  });
+}
+
+export function useRetryStudioItem(roomId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => learningApi.retryStudioItem(roomId, itemId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.studio(roomId), exact: true }),
   });
 }
 

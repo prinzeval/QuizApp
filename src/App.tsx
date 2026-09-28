@@ -16,6 +16,7 @@ import { InvitePage } from "./features/members/InvitePage.tsx";
 import { RealtimeProvider } from "./realtime/RealtimeProvider.tsx";
 
 // The viewer brings pdf.js and the Word renderer; load them only when a file is opened.
+const StudioItemPage = lazy(() => import("./features/studio/StudioItemPage.tsx").then(module => ({ default: module.StudioItemPage })));
 const MaterialViewerPage = lazy(() => import("./features/materials/viewer/MaterialViewerPage.tsx").then(module => ({ default: module.MaterialViewerPage })));
 
 const pageLoader = (
@@ -55,6 +56,14 @@ export function App() {
                 <Route path="/" element={<RoomsPage />} />
                 <Route path="/rooms/:roomId" element={<RoomPage />} />
                 <Route path="/rooms/:roomId/quizzes/:quizId" element={<QuizPlayerPage />} />
+                <Route
+                  path="/rooms/:roomId/studio/:itemId"
+                  element={
+                    <Suspense fallback={pageLoader}>
+                      <StudioItemPage />
+                    </Suspense>
+                  }
+                />
                 <Route
                   path="/rooms/:roomId/materials/:materialId"
                   element={

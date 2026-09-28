@@ -7,6 +7,8 @@ import type { QuestionReview, QuizAttempt, QuizMode } from "../../lib/learningAp
 import { formatDate } from "../../lib/format.ts";
 import { BlankPrompt } from "./QuestionView.tsx";
 import { SourceNote } from "./SourceNote.tsx";
+import { LabelImageReview, LocateImageReview } from "./PictureQuestion.tsx";
+import { FigureCrop } from "../figures/FigureCrop.tsx";
 import { MODE_LABEL, OPTION_LETTERS, TYPE_LABEL, correctText, percent, responseText, scoreColor, scoreMessage, topicBreakdown } from "./quizUtils.ts";
 
 interface ResultsProps {
@@ -133,7 +135,7 @@ export function Results({ roomId, attempt, reviews, starting, onStart }: Results
         </Group>
         <Stack gap="sm" component="ol" p={0} m={0} style={{ listStyle: "none" }}>
           {shown.map(review => (
-            <ReviewItem key={review.id} review={review} number={reviews.indexOf(review) + 1} />
+            <ReviewItem key={review.id} roomId={roomId} review={review} number={reviews.indexOf(review) + 1} />
           ))}
         </Stack>
       </Stack>
@@ -141,7 +143,8 @@ export function Results({ roomId, attempt, reviews, starting, onStart }: Results
   );
 }
 
-function ReviewItem({ review, number }: { review: QuestionReview; number: number }) {
+function ReviewItem({ roomId, review, number }: { roomId: string; review: QuestionReview; number: number }) {
+  const picture = review.type === "label_image" || review.type === "locate_image";
   const status = review.response === null ? "skipped" : review.isCorrect ? "correct" : "wrong";
   const color = status === "correct" ? "teal" : status === "wrong" ? "red" : "gray";
   const yours = responseText(review, review.response);
@@ -175,6 +178,27 @@ function ReviewItem({ review, number }: { review: QuestionReview; number: number
           <Text fw={600} style={{ overflowWrap: "anywhere" }}>
             {review.type === "fill_blank" ? <BlankPrompt prompt={review.prompt} value="" review={null} /> : review.prompt}
           </Text>
+          {review.type === "label_image" && <LabelImageReview roomId={roomId} review={review} />}
+          {review.type === "locate_image" && (
+            <>
+              <LocateImageReview roomId={roomId} review={review} />
+              <Text size="sm" c="dimmed">
+                {review.response === null ? "Not answered. " : review.isCorrect ? "You found it. " : "Your tap missed. "}
+                The highlighted area is {correctText(review).answer.replace(/, highlighted on the picture$/, "")}.
+              </Text>
+            </>
+          )}
+          {review.figure && !picture && (
+            <Box maw={560}>
+              <FigureCrop roomId={roomId} figure={review.figure} maxHeight={320} label={review.figure.title} />
+              {review.figure.caption && (
+                <Text size="xs" c="dimmed" mt={4}>
+                  {review.figure.caption}
+                </Text>
+              )}
+            </Box>
+          )}
+          {!picture && (
           <Box>
             <Text size="sm" style={{ overflowWrap: "anywhere" }}>
               <Text span size="sm" c="dimmed">
@@ -208,6 +232,7 @@ function ReviewItem({ review, number }: { review: QuestionReview; number: number
               </Text>
             )}
           </Box>
+          )}
           {review.explanation && (
             <Text size="sm" c="dimmed" style={{ overflowWrap: "anywhere" }}>
               {review.explanation}

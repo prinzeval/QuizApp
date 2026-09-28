@@ -3,9 +3,11 @@ import { Badge, Box, Group, Radio, SimpleGrid, Stack, Text, TextInput, ThemeIcon
 import { IconCheck, IconX } from "@tabler/icons-react";
 import type { QuestionReview, QuizQuestion } from "../../lib/learningApi.ts";
 import { OPTION_LETTERS, TYPE_LABEL, splitBlank } from "./quizUtils.ts";
+import { LabelImage, LocateImage, QuestionPicture } from "./PictureQuestion.tsx";
 import classes from "./Option.module.css";
 
 interface QuestionViewProps {
+  roomId: string;
   question: QuizQuestion;
   /** Current response: an option index as a string, the typed text, or "" for none. */
   value: string;
@@ -20,7 +22,7 @@ interface QuestionViewProps {
 }
 
 /** One question: prompt plus the right answer control for its type. */
-export function QuestionView({ question, value, onChange, onSubmit, review, disabled, headingRef, inputRef }: QuestionViewProps) {
+export function QuestionView({ roomId, question, value, onChange, onSubmit, review, disabled, headingRef, inputRef }: QuestionViewProps) {
   const promptId = useId();
   const locked = !!review || !!disabled;
 
@@ -51,7 +53,15 @@ export function QuestionView({ question, value, onChange, onSubmit, review, disa
         {question.type === "fill_blank" ? <BlankPrompt prompt={question.prompt} value={value} review={review ?? null} /> : question.prompt}
       </Title>
 
-      {question.type === "fill_blank" ? (
+      {question.figure && question.type !== "label_image" && question.type !== "locate_image" && (
+        <QuestionPicture roomId={roomId} figure={question.figure} review={review ?? null} />
+      )}
+
+      {question.type === "label_image" && question.figure ? (
+        <LabelImage roomId={roomId} figure={question.figure} options={question.options ?? []} value={value} onChange={onChange} locked={locked} review={review} />
+      ) : question.type === "locate_image" && question.figure ? (
+        <LocateImage roomId={roomId} figure={question.figure} value={value} onChange={onChange} locked={locked} review={review} />
+      ) : question.type === "fill_blank" ? (
         <TextInput
           ref={inputRef}
           size="lg"

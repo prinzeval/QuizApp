@@ -1,14 +1,21 @@
-import type { Difficulty, QuestionPending, QuestionReview, QuestionType, QuizAttempt, QuizMode } from "../../lib/learningApi.ts";
+import type { Difficulty, QuestionPending, QuestionReview, QuestionType, QuizAttempt, QuizMode, RequestableType } from "../../lib/learningApi.ts";
 
-export const QUESTION_TYPES: QuestionType[] = ["multiple_choice", "true_false", "fill_blank"];
+export const QUESTION_TYPES: RequestableType[] = ["multiple_choice", "true_false", "fill_blank", "picture"];
+/** Picture questions are opt-in: the first time, the AI looks through every page for figures. */
+export const DEFAULT_TYPES: RequestableType[] = ["multiple_choice", "true_false", "fill_blank"];
 export const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 export const COUNT_LIMITS = { min: 3, max: 30 } as const;
 
-export const TYPE_LABEL: Record<QuestionType, string> = {
+export const TYPE_LABEL: Record<QuestionType | RequestableType, string> = {
   multiple_choice: "Multiple choice",
   true_false: "True / false",
   fill_blank: "Fill in the blank",
+  picture: "Pictures",
+  label_image: "Label the picture",
+  locate_image: "Find it on the picture",
 };
+
+export const isPictureType = (type: QuestionType) => type === "label_image" || type === "locate_image";
 
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 export const DIFFICULTY_COLOR: Record<Difficulty, string> = { easy: "teal", medium: "yellow", hard: "red" };
@@ -55,12 +62,21 @@ export function splitBlank(prompt: string): { before: string; after: string; has
 export function responseText(question: { type: QuestionType; options: string[] | null }, response: string | null): string | null {
   if (response === null || response === "") return null;
   if (question.type === "fill_blank") return response;
+  if (question.type === "label_image") return "Your labels are shown on the picture";
+  if (question.type === "locate_image") return "Your tap is shown on the picture";
   const option = question.options?.[Number(response)];
   return option ?? response;
 }
 
 /** The correct answer as text, plus any other accepted spellings for fill-in-the-blank. */
-export function correctText(review: Pick<QuestionReview, "type" | "options" | "correctIndex" | "acceptedAnswers">): { answer: string; alsoAccepted: string[] } {
+export function correctText(
+  review: Pick<QuestionReview, "type" | "options" | "correctIndex" | "acceptedAnswers"> & { figure?: QuestionReview["figure"] },
+): { answer: string; alsoAccepted: string[] } {
+  if (review.type === "label_image") return { answer: "shown on the picture", alsoAccepted: [] };
+  if (review.type === "locate_image") {
+    const label = review.figure?.labels[review.correctIndex ?? -1]?.text;
+    return { answer: label ? `${label}, highlighted on the picture` : "highlighted on the picture", alsoAccepted: [] };
+  }
   if (review.type === "fill_blank") {
     const [answer = "", ...rest] = review.acceptedAnswers ?? [];
     return { answer, alsoAccepted: rest };
@@ -84,8 +100,8 @@ export function topicBreakdown(reviews: Pick<QuestionReview, "topic" | "isCorrec
 }
 
 /** Unique topics in question order. */
-export function uniqueTopics(questions: { topic: string }[]): string[] {
-  return [...new Set(questions.map(q => q.topic.trim()).filter(Boolean))];
+export function uniqueTopics(questions: { topic: string | null }[]): string[] {
+  return [...new Set(questions.map(q => (q.topic ?? "").trim()).filter(Boolean))];
 }
 
 /**
@@ -93,7 +109,7 @@ export function uniqueTopics(questions: { topic: string }[]): string[] {
  * T / F answer true/false. Returns the option index or null.
  */
 export function keyToOption(key: string, type: QuestionType, optionCount: number): number | null {
-  if (type === "fill_blank") return null;
+  if (type === "fill_blank" || type === "label_image" || type === "locate_image") return null;
   const lower = key.toLowerCase();
   if (type === "true_false") {
     if (lower === "t") return 0;

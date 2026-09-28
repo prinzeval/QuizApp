@@ -8,6 +8,7 @@ import { QuestionView } from "./QuestionView.tsx";
 import { SourceNote } from "./SourceNote.tsx";
 import { FinishConfirm, RunnerHeader, focusOption, isActivatable, usePatchAttempt, useQuizKeys, type AttemptData } from "./playerParts.tsx";
 import { correctText, isReview, keyToOption } from "./quizUtils.ts";
+import { isPictureAnswerComplete } from "./PictureQuestion.tsx";
 
 interface PracticeRunnerProps {
   roomId: string;
@@ -43,6 +44,7 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
   const answeredCount = Object.keys(reviews).length;
   const correctCount = Object.values(reviews).filter(r => r.isCorrect).length;
   const isLast = index === questions.length - 1;
+  const complete = isPictureAnswerComplete(question.type, value, question.figure?.zones?.length ?? 0);
   const allAnswered = answeredCount === questions.length;
 
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -68,7 +70,7 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
   const submit = () => {
     if (review || answer.isPending) return;
     const response = value.trim();
-    if (!response) return;
+    if (!response || !complete) return;
     answer.mutate(
       { questionId: question.id, response },
       {
@@ -138,6 +140,7 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
 
       <Stack gap="xl">
         <QuestionView
+          roomId={roomId}
           key={question.id}
           question={question}
           value={value}
@@ -179,7 +182,7 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
               <>
                 <Kbd size="xs">Enter</Kbd> to continue
               </>
-            ) : question.type === "fill_blank" ? (
+            ) : question.type === "fill_blank" || question.type === "label_image" || question.type === "locate_image" ? (
               <>
                 <Kbd size="xs">Enter</Kbd> to check
               </>
@@ -203,7 +206,7 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
               {isLast ? "See results" : "Next question"}
             </Button>
           ) : (
-            <Button size="md" onClick={submit} disabled={!value.trim()} loading={answer.isPending} data-testid="submit-answer" fullWidth={mobile}>
+            <Button size="md" onClick={submit} disabled={!complete} loading={answer.isPending} data-testid="submit-answer" fullWidth={mobile}>
               Check answer
             </Button>
           )}
@@ -243,7 +246,9 @@ function Feedback({ review }: { review: QuestionReview }) {
             {correct ? "Correct!" : "Not quite"}
           </Text>
         </Group>
-        {!correct && (
+        {!correct && review.type === "label_image" && <Text size="sm">The correct labels are shown on the picture above.</Text>}
+        {!correct && review.type === "locate_image" && <Text size="sm">The right spot is highlighted on the picture above.</Text>}
+        {!correct && review.type !== "label_image" && review.type !== "locate_image" && (
           <Text size="sm">
             The answer is <strong>{answer}</strong>
             {alsoAccepted.length > 0 && <Text span size="sm" c="dimmed">{` (also accepted: ${alsoAccepted.join(", ")})`}</Text>}

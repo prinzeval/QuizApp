@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.125",
+    "@dagrejs/dagre": "^3.1.1",
     "@mantine/charts": "^9.6.3",
     "@mantine/core": "^9.6.3",
     "@mantine/dropzone": "^9.6.3",
@@ -33,6 +34,7 @@
     "@mantine/notifications": "^9.6.3",
     "@tabler/icons-react": "^3.48.0",
     "@tanstack/react-query": "^5.104.0",
+    "@xyflow/react": "^12.12.0",
     "ai": "^7.0.122",
     "docx-preview": "^0.4.1",
     "katex": "^0.18.9",

@@ -25,6 +25,7 @@ import {
   IconListCheck,
   IconMessageChatbot,
   IconPencil,
+  IconSparkles,
   IconTrash,
   IconUsers,
 } from "@tabler/icons-react";
@@ -35,6 +36,7 @@ import { notify } from "../notify.ts";
 import { RoomForm } from "../components/RoomForm.tsx";
 import { RoomAvatar } from "../components/RoomAvatar.tsx";
 import { MaterialsTab } from "../features/materials/MaterialsTab.tsx";
+import { StudioTab } from "../features/studio/StudioTab.tsx";
 import { QuizzesTab } from "../features/quizzes/QuizzesTab.tsx";
 import { TutorTab } from "../features/tutor/TutorTab.tsx";
 import { ProgressTab } from "../features/progress/ProgressTab.tsx";
@@ -44,6 +46,7 @@ import { useRoomLive } from "../realtime/useRoomLive.ts";
 
 const TABS = [
   { id: "materials", label: "Materials", icon: IconFileText },
+  { id: "studio", label: "Studio", icon: IconSparkles },
   { id: "quizzes", label: "Quizzes", icon: IconListCheck },
   { id: "tutor", label: "AI Tutor", icon: IconMessageChatbot },
   { id: "progress", label: "Progress", icon: IconChartBar },
@@ -173,6 +176,9 @@ export function RoomPage() {
 
         <Tabs.Panel value="materials" pt="lg">
           <MaterialsTab room={room} />
+        </Tabs.Panel>
+        <Tabs.Panel value="studio" pt="lg">
+          <StudioTab room={room} />
         </Tabs.Panel>
         <Tabs.Panel value="quizzes" pt="lg">
           <QuizzesTab room={room} />
