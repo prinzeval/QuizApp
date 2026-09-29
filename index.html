@@ -1,76 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartQuiz</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <!-- Header -->
-    <header>
-        <img src="favicon.jpg" alt="SmartQuiz Logo" class="logo">
-        <h1>SmartQuiz</h1>
-        <p class="tagline">Turn Text into Interactive Quizzes</p>
-    </header>
-    
-    <!-- Prompt Instruction Section -->
-    <section class="prompt-section">
-        <h3>How to Generate Quiz Questions</h3>
-        <p>Copy the following prompt, customize the number of questions, and paste it into ChatGPT and attach your PDF to generate quiz content.</p>
-        <div class="prompt-container">
-            <textarea id="promptText" readonly>
-                Upon receiving a PDF document, extract the relevant information to generate a set of 50 difficult multiple-choice questions in the following format: 
-
-                1. Question Text?
-                
-                A) Option A
-                B) Option B
-                C) Option C
-                D) Option D
-                E) Option E
-                Answer: Correct Option
-                
-                Example usage:
-                1. What is the primary inorganic component of bone that provides its hardness and strength?
-                
-                A) Collagen
-                B) Osteoid
-                C) Calcium hydroxyapatite
-                D) Sodium chloride
-                E) Magnesium oxide
-                Answer: C
-            </textarea>
-            <button onclick="copyPrompt()" class="btn-copy">Copy Prompt</button>
-        </div>
-    </section>
-    
-    <!-- Main Content -->
-    <main class="container">
-        <p class="subtitle">Convert Text to Quiz & Test Your Knowledge</p>
-        
-        <!-- Text Input for Questions -->
-        <textarea id="textInput" placeholder="Paste your questions here..." rows="8"></textarea>
-        
-        <!-- Button to generate quiz -->
-        <button onclick="generateQuiz()" class="btn-primary">Generate Quiz</button>
-        
-        <!-- Quiz Container -->
-        <div id="quizContainer" style="display: none;">
-            <h2>Your Quiz</h2>
-            <form id="quizForm"></form>
-            <button onclick="submitQuiz()" class="btn-submit">Submit Quiz</button>
-            <button onclick="resetQuiz()" class="btn-reset">Reset Quiz</button>
-            <div id="results" aria-live="polite"></div>
-        </div>
-    </main>
-    
-    <!-- Footer -->
-    <footer>
-        <p>&copy; 2024 SmartQuiz. All rights reserved.</p>
-        <p>Inspired by Nana ❤️  Made by Valentine  | Contact me <a href="mailto:valentineallpowers@gmail.com">Here</a> but for what? 🙂</p>
-    </footer>
-    
-    <script src="script.js"></script>
-</body>
+    <meta name="description" content="Turn your notes into quizzes." />
+    <link rel="icon" href="/favicon.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
