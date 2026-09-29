@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:6969/api/v1/app";
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:6969/api/v1";
 const TOKEN_KEY = "smartquiz.token";
 
 export interface User {
@@ -89,5 +89,5 @@ export const api = {
     request<AuthResponse>("/auth/signup", { method: "POST", body: JSON.stringify(input) }),
   login: (input: { email: string; password: string }) =>
     request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(input) }),
-  me: () => request<{ user: User }>("/auth/me"),
+  me: () => request<{ user: User }>("/app/profile"),
 };

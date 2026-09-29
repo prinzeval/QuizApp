@@ -4,7 +4,7 @@ React + TypeScript + Vite. Talks to the API in `../quizapp-be`.
 
 ```bash
 npm install
-cp .env.example .env.local   # points at the API (default http://localhost:6969/api/v1/app)
+cp .env.example .env.local   # points at the API (default http://localhost:6969/api/v1)
 npm run dev                  # starts on 5173, or the next free port
 npm test                     # unit tests
 npm run build                # typecheck + production build
