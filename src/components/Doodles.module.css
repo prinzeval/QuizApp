@@ -1,0 +1,47 @@
+/* The only hand-drawn touches in the app. */
+
+.scribble {
+  position: relative;
+  white-space: nowrap;
+}
+
+.scribble svg {
+  position: absolute;
+  left: -2%;
+  bottom: -0.3em;
+  width: 104%;
+  height: 0.45em;
+  overflow: visible;
+}
+
+.scribble path {
+  fill: none;
+  stroke: var(--mantine-color-yellow-4);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 260;
+  stroke-dashoffset: 260;
+  animation: draw 0.9s 0.3s ease-out forwards;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scribble path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+.book {
+  width: 96px;
+  fill: none;
+  stroke: var(--mantine-primary-color-filled);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

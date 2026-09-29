@@ -1,0 +1,14 @@
+/* Phones: bump Mantine's default control sizes so every tap target is at least 40px. */
+
+.button {
+  @mixin smaller-than $mantine-breakpoint-sm {
+    --button-height-xs: 40px;
+    --button-height-sm: 40px;
+  }
+}
+
+.input {
+  @mixin smaller-than $mantine-breakpoint-sm {
+    --input-height-sm: 40px;
+  }
+}

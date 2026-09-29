@@ -1,0 +1,45 @@
+/* Only what Mantine's Typography can't do: keep wide content scrolling inside the message. */
+
+.root :global(.katex-display) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 2px;
+}
+
+.root pre {
+  overflow-x: auto;
+}
+
+.root li > p {
+  margin-bottom: 0.25em;
+}
+
+.root mark {
+  background: var(--mantine-color-yellow-2);
+  color: inherit;
+  border-radius: 2px;
+  padding-inline: 1px;
+}
+
+:global([data-mantine-color-scheme="dark"]) .root mark {
+  background: rgba(250, 204, 21, 0.35);
+}
+
+/* Compact (side panel): smaller headings so a page reads like notes, not a poster. */
+.root[data-size="sm"] :is(h1, h2, h3) {
+  font-size: 1rem;
+  margin-top: 0.75em;
+  margin-bottom: 0.4em;
+}
+
+.root[data-size="sm"] :is(h4, h5, h6) {
+  font-size: 0.875rem;
+}
+
+.root[data-size="sm"] > :first-child {
+  margin-top: 0;
+}
+
+.root[data-size="sm"] > :last-child {
+  margin-bottom: 0;
+}

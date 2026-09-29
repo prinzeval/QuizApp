@@ -1,16 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, type FieldErrors, type RoomInput } from "../lib/api.ts";
-import { FormAlert, TextField } from "./fields.tsx";
+import { Alert, Button, Group, Stack, Text, TextInput, Textarea } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
 
 interface RoomFormProps {
   initial?: RoomInput;
   submitLabel: string;
-  pendingLabel: string;
   onSubmit: (input: RoomInput) => Promise<unknown>;
   onCancel: () => void;
 }
 
-export function RoomForm({ initial, submitLabel, pendingLabel, onSubmit, onCancel }: RoomFormProps) {
+export function RoomForm({ initial, submitLabel, onSubmit, onCancel }: RoomFormProps) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -37,45 +37,52 @@ export function RoomForm({ initial, submitLabel, pendingLabel, onSubmit, onCance
   }
 
   return (
-    <form className="stack" onSubmit={handleSubmit} noValidate>
-      {formError && <FormAlert>{formError}</FormAlert>}
-      <TextField
-        label="Room name"
-        name="name"
-        placeholder="e.g. BIO 201 — Human Anatomy"
-        value={name}
-        onChange={e => setName(e.target.value)}
-        error={errors.name}
-        maxLength={100}
-        autoComplete="off"
-        autoFocus
-      />
-      <div className={`field ${errors.description ? "field-invalid" : ""}`}>
-        <label className="field-label" htmlFor="room-description">
-          Description <span className="field-optional">(optional)</span>
-        </label>
-        <textarea
-          id="room-description"
-          className="field-input field-textarea"
+    <form onSubmit={handleSubmit} noValidate>
+      <Stack gap="md">
+        {formError && (
+          <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert">
+            {formError}
+          </Alert>
+        )}
+        <TextInput
+          label="Room name"
+          name="name"
+          placeholder="e.g. BIO 201 — Human Anatomy"
+          value={name}
+          onChange={e => setName(e.currentTarget.value)}
+          error={errors.name}
+          maxLength={100}
+          autoComplete="off"
+          data-autofocus
+        />
+        <Textarea
+          label={
+            <>
+              Description{" "}
+              <Text span c="dimmed" fw={400} size="sm">
+                (optional)
+              </Text>
+            </>
+          }
           name="description"
-          rows={3}
+          autosize
+          minRows={3}
+          maxRows={6}
           maxLength={500}
           placeholder="What are you studying in here?"
           value={description}
-          onChange={e => setDescription(e.target.value)}
-          aria-invalid={errors.description ? true : undefined}
+          onChange={e => setDescription(e.currentTarget.value)}
+          error={errors.description}
         />
-        {errors.description && <p className="field-error">{errors.description}</p>}
-      </div>
-      <div className="modal-actions">
-        <button type="button" className="btn btn-secondary" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={pending} aria-busy={pending}>
-          {pending && <span className="spinner" aria-hidden="true" />}
-          {pending ? pendingLabel : submitLabel}
-        </button>
-      </div>
+        <Group justify="flex-end" gap="sm" mt="xs">
+          <Button variant="default" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={pending}>
+            {submitLabel}
+          </Button>
+        </Group>
+      </Stack>
     </form>
   );
 }

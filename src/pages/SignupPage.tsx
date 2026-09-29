@@ -1,15 +1,20 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Alert, Anchor, Button, Stack, TextInput } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
 import { useAuth } from "../auth/AuthContext.tsx";
 import { ApiError, type FieldErrors } from "../lib/api.ts";
 import { AuthLayout } from "../components/AuthLayout.tsx";
-import { FormAlert, PasswordField, SubmitButton, TextField } from "../components/fields.tsx";
+import { PasswordField, StrengthMeter } from "../components/PasswordField.tsx";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SignupPage() {
   const { signup } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // e.g. an invite link that sent the user here to create an account first
+  const from = (location.state as { from?: string } | null)?.from ?? "/";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,7 +37,7 @@ export function SignupPage() {
     setLoading(true);
     try {
       await signup({ name, email, password });
-      navigate("/", { replace: true });
+      navigate(from, { replace: true });
     } catch (error) {
       if (error instanceof ApiError && Object.keys(error.fieldErrors).length) {
         setErrors(error.fieldErrors);
@@ -50,41 +55,56 @@ export function SignupPage() {
       subtitle="It takes less than a minute."
       footer={
         <>
-          Already have an account? <Link to="/login">Log in</Link>
+          Already have an account?{" "}
+          <Anchor component={Link} to="/login" state={location.state} fw={600}>
+            Log in
+          </Anchor>
         </>
       }
     >
-      <form className="auth-form" onSubmit={handleSubmit} noValidate>
-        {formError && <FormAlert>{formError}</FormAlert>}
-        <TextField
-          label="Name"
-          name="name"
-          autoComplete="name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          error={errors.name}
-          autoFocus
-        />
-        <TextField
-          label="Email"
-          type="email"
-          name="email"
-          autoComplete="email"
-          inputMode="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          error={errors.email}
-        />
-        <PasswordField
-          label="Password"
-          name="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          error={errors.password}
-          hint="At least 8 characters."
-        />
-        <SubmitButton loading={loading}>{loading ? "Creating account…" : "Create account"}</SubmitButton>
+      <form onSubmit={handleSubmit} noValidate>
+        <Stack gap="md">
+          {formError && (
+            <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert">
+              {formError}
+            </Alert>
+          )}
+          <TextInput
+            label="Name"
+            name="name"
+            autoComplete="name"
+            value={name}
+            onChange={e => setName(e.currentTarget.value)}
+            error={errors.name}
+            autoFocus
+          />
+          <TextInput
+            label="Email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            onChange={e => setEmail(e.currentTarget.value)}
+            error={errors.email}
+          />
+          <div>
+            <PasswordField
+              label="Password"
+              name="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={e => setPassword(e.currentTarget.value)}
+              error={errors.password}
+              description="At least 8 characters."
+              inputWrapperOrder={["label", "input", "description", "error"]}
+            />
+            {!errors.password && <StrengthMeter password={password} />}
+          </div>
+          <Button type="submit" fullWidth loading={loading} mt="xs">
+            Create account
+          </Button>
+        </Stack>
       </form>
     </AuthLayout>
   );

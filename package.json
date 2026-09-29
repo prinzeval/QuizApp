@@ -11,17 +11,40 @@
     "typecheck": "tsc"
   },
   "devDependencies": {
+    "@types/hast": "^3.0.5",
+    "@types/mdast": "^4.0.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "postcss": "^8.5.28",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
+    "vite-plugin-static-copy": "^4.1.1",
     "vitest": "^5.0.2"
   },
   "dependencies": {
+    "@ai-sdk/react": "^4.0.125",
+    "@mantine/charts": "^9.6.3",
+    "@mantine/core": "^9.6.3",
+    "@mantine/dropzone": "^9.6.3",
+    "@mantine/hooks": "^9.6.3",
+    "@mantine/notifications": "^9.6.3",
+    "@tabler/icons-react": "^3.48.0",
     "@tanstack/react-query": "^5.104.0",
+    "ai": "^7.0.122",
+    "docx-preview": "^0.4.1",
+    "katex": "^0.18.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-router-dom": "^7.18.4"
+    "react-markdown": "^10.1.0",
+    "react-pdf": "^11.0.0",
+    "react-router-dom": "^7.18.4",
+    "recharts": "^3.10.1",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "socket.io-client": "^4.8.4"
   }
 }

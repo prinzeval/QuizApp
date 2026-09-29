@@ -1,4 +1,7 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:6969/api/v1";
+export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:6969/api/v1";
+
+/** Origin of the API server, for the realtime socket (e.g. http://localhost:6969). */
+export const API_ORIGIN = new URL(BASE_URL).origin;
 const TOKEN_KEY = "smartquiz.token";
 
 export interface User {
@@ -59,7 +62,7 @@ export function onUnauthorized(handler: (() => void) | null): void {
   unauthorizedHandler = handler;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = tokenStore.get();
   const headers = new Headers(init.headers);
   // FormData sets its own multipart boundary; everything else is JSON.

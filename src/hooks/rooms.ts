@@ -1,10 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type RoomInput } from "../lib/api.ts";
+import { queryKeys } from "./queryKeys.ts";
 
-const keys = {
-  all: ["rooms"] as const,
-  detail: (roomId: string) => ["rooms", roomId] as const,
-};
+const keys = { all: queryKeys.rooms, detail: queryKeys.room };
 
 export function useRooms() {
   return useQuery({ queryKey: keys.all, queryFn: () => api.rooms().then(d => d.rooms) });

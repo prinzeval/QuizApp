@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Alert, Anchor, Button, Stack, TextInput } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
 import { useAuth } from "../auth/AuthContext.tsx";
 import { ApiError, type FieldErrors } from "../lib/api.ts";
 import { AuthLayout } from "../components/AuthLayout.tsx";
-import { FormAlert, PasswordField, SubmitButton, TextField } from "../components/fields.tsx";
+import { PasswordField } from "../components/PasswordField.tsx";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -50,32 +52,43 @@ export function LoginPage() {
       subtitle="Log in to keep quizzing."
       footer={
         <>
-          New here? <Link to="/signup">Create an account</Link>
+          New here?{" "}
+          <Anchor component={Link} to="/signup" state={location.state} fw={600}>
+            Create an account
+          </Anchor>
         </>
       }
     >
-      <form className="auth-form" onSubmit={handleSubmit} noValidate>
-        {formError && <FormAlert>{formError}</FormAlert>}
-        <TextField
-          label="Email"
-          type="email"
-          name="email"
-          autoComplete="email"
-          inputMode="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          error={errors.email}
-          autoFocus
-        />
-        <PasswordField
-          label="Password"
-          name="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          error={errors.password}
-        />
-        <SubmitButton loading={loading}>{loading ? "Logging in…" : "Log in"}</SubmitButton>
+      <form onSubmit={handleSubmit} noValidate>
+        <Stack gap="md">
+          {formError && (
+            <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert">
+              {formError}
+            </Alert>
+          )}
+          <TextInput
+            label="Email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            onChange={e => setEmail(e.currentTarget.value)}
+            error={errors.email}
+            autoFocus
+          />
+          <PasswordField
+            label="Password"
+            name="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={e => setPassword(e.currentTarget.value)}
+            error={errors.password}
+          />
+          <Button type="submit" fullWidth loading={loading} mt="xs">
+            Log in
+          </Button>
+        </Stack>
       </form>
     </AuthLayout>
   );

@@ -1,0 +1,13 @@
+/* Hover/focus feedback for cards that are links (Mantine's recommended CSS-module approach). */
+.card {
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+
+  @mixin hover {
+    border-color: var(--mantine-primary-color-light-color);
+    box-shadow: var(--mantine-shadow-md);
+    transform: translateY(-1px);
+  }
+}

@@ -1,51 +1,111 @@
-import { useRef, useState, type DragEvent, type FormEvent } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  Flex,
+  Group,
+  List,
+  NavLink,
+  SegmentedControl,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import { Dropzone, type FileRejection } from "@mantine/dropzone";
+import { IconAlertCircle, IconAlertTriangle, IconCamera, IconKey, IconSettings, IconUser } from "@tabler/icons-react";
 import { useAuth } from "../auth/AuthContext.tsx";
 import { useRooms } from "../hooks/rooms.ts";
 import { api, ApiError, type FieldErrors } from "../lib/api.ts";
 import { formatDate } from "../lib/format.ts";
-import { passwordStrength } from "../lib/passwordStrength.ts";
+import { notify } from "../notify.ts";
 import { AvatarCropper } from "../components/AvatarCropper.tsx";
-import { FormAlert, PasswordField, TextField } from "../components/fields.tsx";
-import { Modal } from "../components/Modal.tsx";
-import { useToast } from "../components/Toaster.tsx";
+import { PasswordField, StrengthMeter } from "../components/PasswordField.tsx";
 import { UserAvatar } from "../components/UserAvatar.tsx";
+import { FormModal } from "../components/FormModal.tsx";
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024; // before cropping; the upload itself is ~50 KB
 
+const SECTIONS = [
+  { to: "/settings", label: "Profile", short: "Profile", icon: IconUser },
+  { to: "/settings/security", label: "Password & security", short: "Security", icon: IconKey },
+  { to: "/settings/account", label: "Account", short: "Account", icon: IconSettings },
+];
+
 export function SettingsPage() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const current = pathname.replace(/\/$/, "");
+
   return (
     <>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Profile & settings</h1>
-          <p className="page-subtitle">Manage how you appear to others and keep your account secure.</p>
-        </div>
-      </div>
+      <Box mb="xl">
+        <Title order={1}>Profile & settings</Title>
+        <Text c="dimmed" mt={6}>
+          Manage how you appear to others and keep your account secure.
+        </Text>
+      </Box>
 
-      <div className="settings">
-        <nav className="settings-nav" aria-label="Settings sections">
-          <NavLink to="/settings" end className="settings-nav-item">
-            Profile
-          </NavLink>
-          <NavLink to="/settings/security" className="settings-nav-item">
-            Password & security
-          </NavLink>
-          <NavLink to="/settings/account" className="settings-nav-item">
-            Account
-          </NavLink>
-        </nav>
-        <div className="settings-content">
+      <Box
+        display={{ base: "block", sm: "grid" }}
+        style={{ gridTemplateColumns: "200px minmax(0, 1fr)", gap: "var(--mantine-spacing-xl)", alignItems: "start" }}
+      >
+        <Box component="nav" aria-label="Settings sections" mb={{ base: "lg", sm: 0 }}>
+          <SegmentedControl
+            hiddenFrom="sm"
+            fullWidth
+            size="md"
+            radius="md"
+            styles={{ label: { minHeight: 40, display: "flex", alignItems: "center", justifyContent: "center" } }}
+            value={SECTIONS.some(s => s.to === current) ? current : "/settings"}
+            onChange={to => navigate(to)}
+            data={SECTIONS.map(({ to, short }) => ({ value: to, label: short }))}
+          />
+          <Stack gap={2} visibleFrom="sm">
+            {SECTIONS.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                component={Link}
+                to={to}
+                label={label}
+                leftSection={<Icon size={18} stroke={1.8} />}
+                active={current === to}
+                aria-current={current === to ? "page" : undefined}
+                style={{ borderRadius: "var(--mantine-radius-md)" }}
+              />
+            ))}
+          </Stack>
+        </Box>
+        <Stack gap="lg" miw={0}>
           <Routes>
             <Route index element={<ProfileSection />} />
             <Route path="security" element={<SecuritySection />} />
             <Route path="account" element={<AccountSection />} />
             <Route path="*" element={<Navigate to="/settings" replace />} />
           </Routes>
-        </div>
-      </div>
+        </Stack>
+      </Box>
     </>
+  );
+}
+
+function SectionCard({ title, description, children, danger = false }: { title: string; description?: ReactNode; children?: ReactNode; danger?: boolean }) {
+  return (
+    <Card component="section" aria-label={title} bd={danger ? "1px solid var(--mantine-color-red-outline)" : undefined}>
+      <Title order={2} c={danger ? "red" : undefined}>
+        {title}
+      </Title>
+      {description && (
+        <Text size="sm" c="dimmed" mt={4}>
+          {description}
+        </Text>
+      )}
+      {children && <Box mt="lg">{children}</Box>}
+    </Card>
   );
 }
 
@@ -53,14 +113,12 @@ export function SettingsPage() {
 
 function ProfileSection() {
   const { user, updateUser } = useAuth();
-  const { toast } = useToast();
   const [name, setName] = useState(user?.name ?? "");
   const [nameError, setNameError] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const openRef = useRef<() => void>(null);
 
   if (!user) return null;
   const nameChanged = name.trim() !== user.name;
@@ -68,20 +126,19 @@ function ProfileSection() {
   function pick(candidate: File | undefined) {
     if (!candidate) return;
     if (!ACCEPTED.includes(candidate.type)) {
-      toast("Choose a JPEG, PNG or WebP image.", "error");
+      notify("Choose a JPEG, PNG or WebP image.", "error");
       return;
     }
     if (candidate.size > MAX_BYTES) {
-      toast("That image is over 10 MB. Try a smaller one.", "error");
+      notify("That image is over 10 MB. Try a smaller one.", "error");
       return;
     }
     setFile(candidate);
   }
 
-  function onDrop(event: DragEvent) {
-    event.preventDefault();
-    setDragging(false);
-    pick(event.dataTransfer.files[0]);
+  function onReject([rejection]: FileRejection[]) {
+    // Same messages as pick() so drag-and-drop and the picker agree.
+    if (rejection) pick(rejection.file);
   }
 
   async function saveName(event: FormEvent) {
@@ -96,10 +153,10 @@ function ProfileSection() {
       const { user: updated } = await api.updateProfile({ name });
       updateUser(updated);
       setName(updated.name);
-      toast("Name updated");
+      notify("Name updated");
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors.name) setNameError(error.fieldErrors.name);
-      else toast(error instanceof Error ? error.message : "Couldn't save your name.", "error");
+      else notify(error instanceof Error ? error.message : "Couldn't save your name.", "error");
     } finally {
       setSavingName(false);
     }
@@ -110,9 +167,9 @@ function ProfileSection() {
     try {
       const { user: updated } = await api.removeAvatar();
       updateUser(updated);
-      toast("Photo removed");
+      notify("Photo removed");
     } catch (error) {
-      toast(error instanceof Error ? error.message : "Couldn't remove your photo.", "error");
+      notify(error instanceof Error ? error.message : "Couldn't remove your photo.", "error");
     } finally {
       setRemoving(false);
     }
@@ -120,77 +177,75 @@ function ProfileSection() {
 
   return (
     <>
-      <section className="card" aria-labelledby="photo-heading">
-        <h2 id="photo-heading" className="card-title">
-          Profile photo
-        </h2>
-        <p className="card-description">Shown to people in your study rooms.</p>
-        <div className="avatar-editor">
-          <button
-            type="button"
-            className={`avatar-drop ${dragging ? "dragging" : ""}`}
-            onClick={() => inputRef.current?.click()}
-            onDragOver={event => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
+      <SectionCard title="Profile photo" description="Shown to people in your study rooms.">
+        <Flex direction={{ base: "column", xs: "row" }} align={{ base: "flex-start", xs: "center" }} gap="lg">
+          <Dropzone
+            onDrop={files => pick(files[0])}
+            onReject={onReject}
+            accept={ACCEPTED}
+            maxSize={MAX_BYTES}
+            multiple={false}
+            openRef={openRef}
+            radius={999}
+            p={4}
+            w={104}
+            h={104}
+            style={{ flexShrink: 0, borderWidth: 2 }}
             aria-label="Change profile photo"
+            inputProps={{ "aria-label": "Profile photo file" }}
           >
-            <UserAvatar name={user.name} url={user.avatarUrl} size="xl" />
-            <span className="avatar-drop-overlay" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-                <circle cx="12" cy="13" r="3.5" />
-              </svg>
-            </span>
-          </button>
-          <div className="avatar-editor-actions">
-            <div className="button-row">
-              <button type="button" className="btn btn-primary" onClick={() => inputRef.current?.click()}>
-                {user.avatarUrl ? "Change photo" : "Upload photo"}
-              </button>
+            <Box pos="relative">
+              <UserAvatar name={user.name} url={user.avatarUrl} size={92} />
+              <Dropzone.Accept>
+                <Box pos="absolute" inset={0} bg="rgba(0,0,0,0.45)" c="white" display="grid" style={{ placeItems: "center", borderRadius: "50%" }}>
+                  <IconCamera size={24} />
+                </Box>
+              </Dropzone.Accept>
+            </Box>
+          </Dropzone>
+          <Stack gap="xs">
+            <Group gap="sm">
+              <Button onClick={() => openRef.current?.()}>{user.avatarUrl ? "Change photo" : "Upload photo"}</Button>
               {user.avatarUrl && (
-                <button type="button" className="btn btn-secondary" onClick={removePhoto} disabled={removing}>
-                  {removing ? "Removing…" : "Remove"}
-                </button>
+                <Button variant="default" onClick={removePhoto} loading={removing}>
+                  Remove
+                </Button>
               )}
-            </div>
-            <p className="field-hint">JPEG, PNG or WebP. You can also drag an image onto the circle.</p>
-          </div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept={ACCEPTED.join(",")}
-            className="visually-hidden"
-            tabIndex={-1}
-            onChange={event => {
-              pick(event.target.files?.[0]);
-              event.target.value = "";
-            }}
-          />
-        </div>
-      </section>
+            </Group>
+            <Text size="xs" c="dimmed">
+              JPEG, PNG or WebP. You can also drag an image onto the circle.
+            </Text>
+          </Stack>
+        </Flex>
+      </SectionCard>
 
-      <section className="card" aria-labelledby="details-heading">
-        <h2 id="details-heading" className="card-title">
-          Personal details
-        </h2>
-        <form className="stack" onSubmit={saveName} noValidate>
-          <TextField label="Name" name="name" autoComplete="name" value={name} onChange={e => setName(e.target.value)} error={nameError} maxLength={100} />
-          <TextField label="Email" name="email" type="email" value={user.email} readOnly disabled hint="Your email is used to log in and can't be changed yet." />
-          <div className="card-footer">
-            <span className="field-hint">Member since {formatDate(user.createdAt)}</span>
-            <button type="submit" className="btn btn-primary" disabled={!nameChanged || savingName} aria-busy={savingName}>
-              {savingName && <span className="spinner" aria-hidden="true" />}
-              {savingName ? "Saving…" : "Save changes"}
-            </button>
-          </div>
+      <SectionCard title="Personal details">
+        <form onSubmit={saveName} noValidate>
+          <Stack gap="md">
+            <TextInput label="Name" name="name" autoComplete="name" value={name} onChange={e => setName(e.currentTarget.value)} error={nameError} maxLength={100} />
+            <TextInput
+              label="Email"
+              name="email"
+              type="email"
+              value={user.email}
+              readOnly
+              disabled
+              description="Your email is used to log in and can't be changed yet."
+              inputWrapperOrder={["label", "input", "description", "error"]}
+            />
+            <Group justify="space-between" gap="sm" mt="xs">
+              <Text size="xs" c="dimmed">
+                Member since {formatDate(user.createdAt)}
+              </Text>
+              <Button type="submit" disabled={!nameChanged} loading={savingName}>
+                Save changes
+              </Button>
+            </Group>
+          </Stack>
         </form>
-      </section>
+      </SectionCard>
 
-      <Modal open={!!file} title="Crop your photo" onClose={() => setFile(null)}>
+      <FormModal opened={!!file} onClose={() => setFile(null)} title="Crop your photo" size="auto">
         {file && (
           <AvatarCropper
             file={file}
@@ -200,11 +255,11 @@ function ProfileSection() {
               const { user: updated } = await api.uploadAvatar(image, `avatar.${extension}`);
               updateUser(updated);
               setFile(null);
-              toast("Photo updated");
+              notify("Photo updated");
             }}
           />
         )}
-      </Modal>
+      </FormModal>
     </>
   );
 }
@@ -213,13 +268,11 @@ function ProfileSection() {
 
 function SecuritySection() {
   const { replaceToken } = useAuth();
-  const { toast } = useToast();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
-  const strength = passwordStrength(newPassword);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -237,66 +290,54 @@ function SecuritySection() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      toast("Password changed. You've been logged out everywhere else.");
+      notify("Password changed. You've been logged out everywhere else.");
     } catch (error) {
       if (error instanceof ApiError && Object.keys(error.fieldErrors).length) setErrors(error.fieldErrors);
-      else toast(error instanceof Error ? error.message : "Couldn't change your password.", "error");
+      else notify(error instanceof Error ? error.message : "Couldn't change your password.", "error");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section className="card" aria-labelledby="password-heading">
-      <h2 id="password-heading" className="card-title">
-        Change password
-      </h2>
-      <p className="card-description">After you change it, any other device logged into your account will be signed out.</p>
-      <form className="stack" onSubmit={submit} noValidate>
-        <PasswordField
-          label="Current password"
-          name="currentPassword"
-          autoComplete="current-password"
-          value={currentPassword}
-          onChange={e => setCurrentPassword(e.target.value)}
-          error={errors.currentPassword}
-        />
-        <div>
+    <SectionCard title="Change password" description="After you change it, any other device logged into your account will be signed out.">
+      <form onSubmit={submit} noValidate>
+        <Stack gap="md" maw={420}>
           <PasswordField
-            label="New password"
-            name="newPassword"
-            autoComplete="new-password"
-            value={newPassword}
-            onChange={e => setNewPassword(e.target.value)}
-            error={errors.newPassword}
+            label="Current password"
+            name="currentPassword"
+            autoComplete="current-password"
+            value={currentPassword}
+            onChange={e => setCurrentPassword(e.currentTarget.value)}
+            error={errors.currentPassword}
           />
-          {newPassword && !errors.newPassword && (
-            <div className="strength" data-score={strength.score}>
-              <div className="strength-bars" aria-hidden="true">
-                {[1, 2, 3, 4].map(i => (
-                  <span key={i} className={i <= strength.score ? "on" : ""} />
-                ))}
-              </div>
-              <span className="strength-label">{strength.label}</span>
-            </div>
-          )}
-        </div>
-        <PasswordField
-          label="Confirm new password"
-          name="confirmPassword"
-          autoComplete="new-password"
-          value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
-          error={errors.confirmPassword}
-        />
-        <div className="card-footer card-footer-end">
-          <button type="submit" className="btn btn-primary" disabled={saving} aria-busy={saving}>
-            {saving && <span className="spinner" aria-hidden="true" />}
-            {saving ? "Changing…" : "Change password"}
-          </button>
-        </div>
+          <div>
+            <PasswordField
+              label="New password"
+              name="newPassword"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.currentTarget.value)}
+              error={errors.newPassword}
+            />
+            {!errors.newPassword && <StrengthMeter password={newPassword} />}
+          </div>
+          <PasswordField
+            label="Confirm new password"
+            name="confirmPassword"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.currentTarget.value)}
+            error={errors.confirmPassword}
+          />
+          <Group mt="xs">
+            <Button type="submit" loading={saving}>
+              Change password
+            </Button>
+          </Group>
+        </Stack>
       </form>
-    </section>
+    </SectionCard>
   );
 }
 
@@ -305,7 +346,6 @@ function SecuritySection() {
 function AccountSection() {
   const { user, logout } = useAuth();
   const rooms = useRooms();
-  const { toast } = useToast();
   const [confirming, setConfirming] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -326,7 +366,7 @@ function AccountSection() {
       await api.deleteAccount({ password });
       // Logging out sends the user to the login page (RequireAuth).
       logout();
-      toast("Your account has been deleted.", "info");
+      notify("Your account has been deleted.", "info");
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors.password) setError(err.fieldErrors.password);
       else setError(err instanceof Error ? err.message : "Couldn't delete your account.");
@@ -334,89 +374,103 @@ function AccountSection() {
     }
   }
 
+  const closeConfirm = () => {
+    setConfirming(false);
+    setPassword("");
+    setError("");
+  };
+
+  const details: [string, string][] = [
+    ["Email", user.email],
+    ["Member since", formatDate(user.createdAt)],
+    ["Study rooms", rooms.data ? `${rooms.data.length} (you own ${ownedRooms.length})` : "…"],
+  ];
+
   return (
     <>
-      <section className="card" aria-labelledby="account-heading">
-        <h2 id="account-heading" className="card-title">
-          Your account
-        </h2>
-        <dl className="details">
-          <div>
-            <dt>Email</dt>
-            <dd>{user.email}</dd>
-          </div>
-          <div>
-            <dt>Member since</dt>
-            <dd>{formatDate(user.createdAt)}</dd>
-          </div>
-          <div>
-            <dt>Study rooms</dt>
-            <dd>{rooms.data ? `${rooms.data.length} (you own ${ownedRooms.length})` : "…"}</dd>
-          </div>
-        </dl>
-      </section>
+      <SectionCard title="Your account">
+        <Stack component="dl" gap={0} m={0}>
+          {details.map(([term, value], index) => (
+            <Group
+              key={term}
+              justify="space-between"
+              gap="md"
+              py="sm"
+              wrap="nowrap"
+              style={index > 0 ? { borderTop: "1px solid var(--mantine-color-default-border)" } : undefined}
+            >
+              <Text component="dt" size="sm" c="dimmed">
+                {term}
+              </Text>
+              <Text component="dd" size="sm" fw={500} m={0} ta="right" style={{ overflowWrap: "anywhere" }}>
+                {value}
+              </Text>
+            </Group>
+          ))}
+        </Stack>
+      </SectionCard>
 
-      <section className="card card-danger" aria-labelledby="danger-heading">
-        <h2 id="danger-heading" className="card-title">
-          Delete account
-        </h2>
-        <p className="card-description">
-          Permanently deletes your account, your profile photo and every study room you own, including everything in them. You'll be removed from rooms other people own.
-        </p>
-        <div className="card-footer card-footer-end">
-          <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)}>
-            Delete my account
-          </button>
-        </div>
-      </section>
-
-      <Modal
-        open={confirming}
-        title="Delete your account?"
-        onClose={() => {
-          setConfirming(false);
-          setPassword("");
-          setError("");
-        }}
+      <SectionCard
+        danger
+        title="Delete account"
+        description="Permanently deletes your account, your profile photo and every study room you own, including everything in them. You'll be removed from rooms other people own."
       >
-        <form className="stack" onSubmit={deleteAccount} noValidate>
-          <p>This can't be undone.</p>
-          {ownedRooms.length > 0 && (
-            <div className="danger-list">
-              <p>
-                These {ownedRooms.length === 1 ? "room" : `${ownedRooms.length} rooms`} will be deleted for everyone in them:
-              </p>
-              <ul>
-                {ownedRooms.map(room => (
-                  <li key={room.id}>
-                    {room.name}
-                    {room.memberCount > 1 && <span className="muted"> · {room.memberCount} members</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {error && !error.startsWith("Incorrect") && <FormAlert>{error}</FormAlert>}
-          <PasswordField
-            label="Enter your password to confirm"
-            name="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            error={error.startsWith("Incorrect") || error.startsWith("Enter") ? error : undefined}
-            autoFocus
-          />
-          <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirming(false)} disabled={deleting}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-danger" disabled={deleting} aria-busy={deleting}>
-              {deleting && <span className="spinner" aria-hidden="true" />}
-              {deleting ? "Deleting…" : "Delete account"}
-            </button>
-          </div>
+        <Group justify="flex-end">
+          <Button color="red" onClick={() => setConfirming(true)}>
+            Delete my account
+          </Button>
+        </Group>
+      </SectionCard>
+
+      <FormModal opened={confirming} onClose={closeConfirm} title="Delete your account?">
+        <form onSubmit={deleteAccount} noValidate>
+          <Stack gap="md">
+            <Text size="sm">This can't be undone.</Text>
+            {ownedRooms.length > 0 && (
+              <Alert color="red" variant="light" icon={<IconAlertTriangle size={18} />}>
+                <Text size="sm">
+                  These {ownedRooms.length === 1 ? "room" : `${ownedRooms.length} rooms`} will be deleted for everyone in them:
+                </Text>
+                <List size="sm" mt={6} spacing={2}>
+                  {ownedRooms.map(room => (
+                    <List.Item key={room.id}>
+                      {room.name}
+                      {room.memberCount > 1 && (
+                        <Text span c="dimmed" size="sm">
+                          {" "}
+                          · {room.memberCount} members
+                        </Text>
+                      )}
+                    </List.Item>
+                  ))}
+                </List>
+              </Alert>
+            )}
+            {error && !error.startsWith("Incorrect") && !error.startsWith("Enter") && (
+              <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert">
+                {error}
+              </Alert>
+            )}
+            <PasswordField
+              label="Enter your password to confirm"
+              name="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={e => setPassword(e.currentTarget.value)}
+              error={error.startsWith("Incorrect") || error.startsWith("Enter") ? error : undefined}
+              data-autofocus
+            />
+            <Group justify="flex-end" gap="sm" mt="xs">
+              <Button variant="default" onClick={() => setConfirming(false)} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button type="submit" color="red" loading={deleting}>
+                Delete account
+              </Button>
+            </Group>
+          </Stack>
         </form>
-      </Modal>
+      </FormModal>
     </>
   );
 }

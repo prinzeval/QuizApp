@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { Alert, Box, Button, Group, Loader, Slider, Stack, Text } from "@mantine/core";
+import { IconAlertCircle, IconZoomIn, IconZoomOut } from "@tabler/icons-react";
 
 const VIEWPORT = 280;
 const OUTPUT = 512;
@@ -122,58 +124,82 @@ export function AvatarCropper({ file, onCancel, onConfirm }: Props) {
   const scale = scaleFor(crop.zoom);
 
   return (
-    <div className="stack">
+    <Stack gap="md">
       {error && (
-        <div className="form-alert" role="alert">
+        <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert">
           {error}
-        </div>
+        </Alert>
       )}
-      <div
-        className="cropper"
-        style={{ width: VIEWPORT, height: VIEWPORT }}
+      <Box
+        pos="relative"
+        w={VIEWPORT}
+        h={VIEWPORT}
+        mx="auto"
+        bg="dark.9"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={() => (drag.current = null)}
         onPointerCancel={() => (drag.current = null)}
         onKeyDown={onKeyDown}
         tabIndex={0}
+        data-autofocus
         role="application"
         aria-label="Photo crop area. Drag or use arrow keys to move, plus and minus to zoom."
+        style={{ overflow: "hidden", borderRadius: "var(--mantine-radius-md)", cursor: "grab", touchAction: "none", userSelect: "none" }}
       >
         {image ? (
           <img
             src={image.src}
             alt=""
             draggable={false}
-            style={{ width: image.naturalWidth * scale, height: image.naturalHeight * scale, transform: `translate(${crop.x}px, ${crop.y}px)` }}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              maxWidth: "none",
+              pointerEvents: "none",
+              width: image.naturalWidth * scale,
+              height: image.naturalHeight * scale,
+              transform: `translate(${crop.x}px, ${crop.y}px)`,
+            }}
           />
         ) : (
-          !error && <span className="spinner spinner-lg" aria-hidden="true" />
+          !error && <Loader color="gray.0" pos="absolute" top="50%" left="50%" style={{ translate: "-50% -50%" }} aria-hidden="true" />
         )}
-        <span className="cropper-ring" aria-hidden="true" />
-      </div>
-      <label className="zoom-control">
-        <span className="visually-hidden">Zoom</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5M8 11h6" />
-        </svg>
-        <input type="range" min={1} max={3} step={0.01} value={crop.zoom} onChange={e => setZoom(Number(e.target.value))} disabled={!image} />
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5M8 11h6M11 8v6" />
-        </svg>
-      </label>
-      <p className="field-hint cropper-hint">Drag to reposition. The circle shows what others will see.</p>
-      <div className="modal-actions">
-        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>
+        {/* Dims everything outside the circle that others will see. */}
+        <Box
+          pos="absolute"
+          inset={0}
+          aria-hidden="true"
+          style={{ borderRadius: "50%", boxShadow: "0 0 0 999px rgba(15, 17, 23, 0.55)", outline: "2px solid rgba(255, 255, 255, 0.8)", outlineOffset: -2, pointerEvents: "none" }}
+        />
+      </Box>
+      <Group gap="sm" wrap="nowrap" w={VIEWPORT} mx="auto">
+        <IconZoomOut size={18} aria-hidden="true" color="var(--mantine-color-dimmed)" />
+        <Slider
+          flex={1}
+          min={1}
+          max={3}
+          step={0.01}
+          value={crop.zoom}
+          onChange={setZoom}
+          disabled={!image}
+          label={null}
+          thumbLabel="Zoom"
+        />
+        <IconZoomIn size={18} aria-hidden="true" color="var(--mantine-color-dimmed)" />
+      </Group>
+      <Text size="sm" c="dimmed" ta="center">
+        Drag to reposition. The circle shows what others will see.
+      </Text>
+      <Group justify="flex-end" gap="sm">
+        <Button variant="default" onClick={onCancel} disabled={saving}>
           Cancel
-        </button>
-        <button type="button" className="btn btn-primary" onClick={confirm} disabled={!image || saving} aria-busy={saving}>
-          {saving && <span className="spinner" aria-hidden="true" />}
-          {saving ? "Uploading…" : "Save photo"}
-        </button>
-      </div>
-    </div>
+        </Button>
+        <Button onClick={confirm} disabled={!image} loading={saving}>
+          Save photo
+        </Button>
+      </Group>
+    </Stack>
   );
 }

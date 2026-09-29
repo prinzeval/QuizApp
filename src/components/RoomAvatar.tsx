@@ -1,7 +1,12 @@
-export function RoomAvatar({ name, color, size = "md" }: { name: string; color: string; size?: "sm" | "md" | "lg" }) {
+import { Avatar, type AvatarProps } from "@mantine/core";
+import { initials, roomColor } from "../lib/format.ts";
+import { roomTone } from "../theme.ts";
+
+/** Coloured initials for a room; the colour is stable per room id. */
+export function RoomAvatar({ room, size = "md" }: { room: { id: string; name: string }; size?: AvatarProps["size"] }) {
   return (
-    <span className={`room-avatar room-avatar-${size} tone-${color}`} aria-hidden="true">
-      {name}
-    </span>
+    <Avatar size={size} radius="md" color={roomTone(roomColor(room.id))} variant="light" aria-hidden="true" fw={700}>
+      {initials(room.name)}
+    </Avatar>
   );
 }

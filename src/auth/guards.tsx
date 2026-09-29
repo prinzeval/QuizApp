@@ -1,12 +1,13 @@
+import { Center, Loader, VisuallyHidden } from "@mantine/core";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext.tsx";
 
 function FullPageSpinner() {
   return (
-    <div className="page-center" role="status" aria-live="polite">
-      <span className="spinner spinner-lg" aria-hidden="true" />
-      <span className="visually-hidden">Loading…</span>
-    </div>
+    <Center mih="100dvh" role="status" aria-live="polite">
+      <Loader aria-hidden="true" />
+      <VisuallyHidden>Loading…</VisuallyHidden>
+    </Center>
   );
 }
 
@@ -15,14 +16,16 @@ export function RequireAuth() {
   const { status } = useAuth();
   const location = useLocation();
   if (status === "loading") return <FullPageSpinner />;
-  if (status === "anonymous") return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (status === "anonymous") return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   return <Outlet />;
 }
 
 /** Login and signup pages bounce logged-in users to the app. */
 export function RedirectIfAuthed() {
   const { status } = useAuth();
+  const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from ?? "/";
   if (status === "loading") return <FullPageSpinner />;
-  if (status === "authenticated") return <Navigate to="/" replace />;
+  if (status === "authenticated") return <Navigate to={from} replace />;
   return <Outlet />;
 }

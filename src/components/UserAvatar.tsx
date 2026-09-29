@@ -1,16 +1,11 @@
-import { useState } from "react";
+import { Avatar, type AvatarProps } from "@mantine/core";
 import { initials } from "../lib/format.ts";
 
-type Size = "xs" | "sm" | "md" | "lg" | "xl";
-
-/** Profile photo, or the person's initials when there isn't one (or it fails to load). */
-export function UserAvatar({ name, url, size = "md" }: { name: string; url: string | null; size?: Size }) {
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const showImage = url && url !== failedUrl;
-
+/** Profile photo, or the person's initials when there isn't one (Mantine falls back if it fails to load). */
+export function UserAvatar({ name, url, size = "md" }: { name: string; url: string | null; size?: AvatarProps["size"] }) {
   return (
-    <span className={`user-avatar user-avatar-${size}`} aria-hidden="true">
-      {showImage ? <img src={url} alt="" onError={() => setFailedUrl(url)} draggable={false} /> : initials(name)}
-    </span>
+    <Avatar src={url} alt="" size={size} radius="100%" color="clay" variant="light" aria-hidden="true" imageProps={{ draggable: false }}>
+      {initials(name)}
+    </Avatar>
   );
 }

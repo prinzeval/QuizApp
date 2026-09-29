@@ -6,10 +6,18 @@
     <title>SmartQuiz</title>
     <meta name="description" content="Turn your notes into quizzes." />
     <link rel="icon" href="/favicon.jpg" />
+    <!-- Same as Mantine's <ColorSchemeScript defaultColorScheme="light" />: sets the scheme before React loads, so there's no flash. -->
+    <script data-mantine-script>
+      try {
+        var stored = window.localStorage.getItem("mantine-color-scheme-value");
+        var scheme = stored === "dark" ? "dark" : stored === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-mantine-color-scheme", scheme);
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Geist:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap"
       rel="stylesheet"
     />
   </head>

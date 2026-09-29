@@ -1,17 +1,20 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Badge, Button, Card, EmptyState, Group, SimpleGrid, Skeleton, Text, TextInput, Title } from "@mantine/core";
+import { IconPlus, IconSearch } from "@tabler/icons-react";
 import { useAuth } from "../auth/AuthContext.tsx";
-import { useToast } from "../components/Toaster.tsx";
 import { useCreateRoom, useRooms } from "../hooks/rooms.ts";
-import { initials, plural, roomColor, timeAgo } from "../lib/format.ts";
-import { Modal } from "../components/Modal.tsx";
+import { plural, timeAgo } from "../lib/format.ts";
+import { notify } from "../notify.ts";
+import { BookDoodle } from "../components/Doodles.tsx";
+import { FormModal } from "../components/FormModal.tsx";
 import { RoomForm } from "../components/RoomForm.tsx";
 import { RoomAvatar } from "../components/RoomAvatar.tsx";
 import type { Room } from "../lib/api.ts";
+import classes from "../components/InteractiveCard.module.css";
 
 export function RoomsPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const rooms = useRooms();
   const createRoom = useCreateRoom();
   const navigate = useNavigate();
@@ -29,95 +32,104 @@ export function RoomsPage() {
   }, [rooms.data, search]);
 
   const newRoomButton = (
-    <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-        <path d="M12 5v14M5 12h14" />
-      </svg>
+    <Button leftSection={<IconPlus size={16} stroke={2.5} />} onClick={() => setCreating(true)}>
       New room
-    </button>
+    </Button>
   );
 
   return (
     <>
-      <div className="page-header">
+      <Group justify="space-between" align="flex-end" gap="md" mb="xl">
         <div>
-          <p className="page-eyebrow">
+          <Text size="sm" fw={600} c="var(--mantine-color-anchor)">
             {greeting()}, {user?.name.split(" ")[0]}
-          </p>
-          <h1 className="page-title">Your study rooms</h1>
-          <p className="page-subtitle">Each room holds the notes, quizzes and people for one subject.</p>
+          </Text>
+          <Title order={1} mt={4}>
+            Your study rooms
+          </Title>
+          <Text c="dimmed" mt={6}>
+            Each room holds the notes, quizzes and people for one subject.
+          </Text>
         </div>
         {rooms.data && rooms.data.length > 0 && newRoomButton}
-      </div>
+      </Group>
 
       {rooms.data && rooms.data.length > 3 && (
-        <div className="toolbar">
-          <label className="search">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
-            <span className="visually-hidden">Search rooms</span>
-            <input type="search" placeholder="Search rooms" value={search} onChange={e => setSearch(e.target.value)} />
-          </label>
-          <span className="muted toolbar-count">
+        <Group justify="space-between" gap="md" mb="lg">
+          <TextInput
+            type="search"
+            placeholder="Search rooms"
+            aria-label="Search rooms"
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={e => setSearch(e.currentTarget.value)}
+            w={{ base: "100%", xs: 320 }}
+          />
+          <Text size="sm" c="dimmed">
             {filtered?.length === rooms.data.length ? `${rooms.data.length} rooms` : `${filtered?.length} of ${rooms.data.length} rooms`}
-          </span>
-        </div>
+          </Text>
+        </Group>
       )}
 
       {rooms.isPending ? (
-        <ul className="room-grid" aria-busy="true" aria-label="Loading rooms">
+        <SimpleGrid cols={{ base: 1, xs: 2, lg: 3 }} spacing="md" aria-busy="true" aria-label="Loading rooms">
           {[0, 1, 2].map(i => (
-            <li key={i} className="room-card skeleton" />
+            <Skeleton key={i} h={172} radius="lg" />
           ))}
-        </ul>
+        </SimpleGrid>
       ) : rooms.isError ? (
-        <div className="empty-state">
-          <p className="empty-title">Couldn't load your rooms</p>
-          <p className="muted">{rooms.error.message}</p>
-          <button type="button" className="btn btn-secondary" onClick={() => rooms.refetch()}>
-            Try again
-          </button>
-        </div>
+        <EmptyState
+          title="Couldn't load your rooms"
+          description={rooms.error.message}
+          py={56}
+          bd="1px dashed var(--mantine-color-default-border)"
+          bdrs="lg"
+        >
+          <EmptyState.Actions>
+            <Button variant="default" onClick={() => rooms.refetch()}>
+              Try again
+            </Button>
+          </EmptyState.Actions>
+        </EmptyState>
       ) : rooms.data.length === 0 ? (
-        <div className="empty-state">
-          <svg className="empty-doodle" viewBox="0 0 120 90" fill="none" aria-hidden="true">
-            <path d="M60 22C46 12 28 11 12 15v58c16-4 33-2 48 8 15-10 32-12 48-8V15c-16-4-34-3-48 7z" />
-            <path d="M60 22v59" />
-            <path d="M22 32c8-2 17-2 26 1M22 44c8-2 17-2 26 1M72 33c9-3 18-3 26-1" />
-          </svg>
-          <p className="empty-title">Create your first study room</p>
-          <p className="muted">A room is where one subject lives: upload your notes, generate quizzes, and invite friends.</p>
-          {newRoomButton}
-        </div>
+        <EmptyState
+          icon={<BookDoodle />}
+          title="Create your first study room"
+          description="A room is where one subject lives: upload your notes, generate quizzes, and invite friends."
+          py={56}
+          px="md"
+          bd="1px dashed var(--mantine-color-default-border)"
+          bdrs="lg"
+        >
+          <EmptyState.Actions>{newRoomButton}</EmptyState.Actions>
+        </EmptyState>
       ) : filtered?.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-title">No rooms match "{search}"</p>
-          <button type="button" className="btn btn-secondary" onClick={() => setSearch("")}>
-            Clear search
-          </button>
-        </div>
+        <EmptyState title={`No rooms match "${search}"`} py={56} bd="1px dashed var(--mantine-color-default-border)" bdrs="lg">
+          <EmptyState.Actions>
+            <Button variant="default" onClick={() => setSearch("")}>
+              Clear search
+            </Button>
+          </EmptyState.Actions>
+        </EmptyState>
       ) : (
-        <ul className="room-grid">
+        <SimpleGrid component="ul" cols={{ base: 1, xs: 2, lg: 3 }} spacing="md" p={0} m={0} style={{ listStyle: "none" }}>
           {filtered?.map(room => (
             <RoomCard key={room.id} room={room} />
           ))}
-        </ul>
+        </SimpleGrid>
       )}
 
-      <Modal open={creating} title="New study room" onClose={() => setCreating(false)}>
+      <FormModal opened={creating} onClose={() => setCreating(false)} title="New study room">
         <RoomForm
           submitLabel="Create room"
-          pendingLabel="Creating…"
           onCancel={() => setCreating(false)}
           onSubmit={async input => {
             const room = await createRoom.mutateAsync(input);
             navigate(`/rooms/${room.id}`, { replace: true });
-            toast(`Created "${room.name}"`);
+            notify(`Created "${room.name}"`);
           }}
         />
-      </Modal>
+      </FormModal>
     </>
   );
 }
@@ -133,17 +145,25 @@ function greeting(): string {
 function RoomCard({ room }: { room: Room }) {
   return (
     <li>
-      <Link to={`/rooms/${room.id}`} className="room-card">
-        <div className="room-card-top">
-          <RoomAvatar name={initials(room.name)} color={roomColor(room.id)} />
-          {room.role === "owner" && <span className="badge">Owner</span>}
-        </div>
-        <h2 className="room-card-name">{room.name}</h2>
-        <p className={`room-card-description ${room.description ? "" : "muted"}`}>{room.description || "No description"}</p>
-        <p className="room-card-meta">
+      <Card component={Link} to={`/rooms/${room.id}`} data-testid="room-card" h="100%" shadow="xs" className={classes.card}>
+        <Group justify="space-between" align="flex-start">
+          <RoomAvatar room={room} size={44} />
+          {room.role === "owner" && (
+            <Badge variant="light" size="sm">
+              Owner
+            </Badge>
+          )}
+        </Group>
+        <Title order={2} size="h3" mt="md" lineClamp={1} data-testid="room-card-name">
+          {room.name}
+        </Title>
+        <Text size="sm" c="dimmed" mt={4} lineClamp={2} fs={room.description ? undefined : "italic"} mih={42}>
+          {room.description || "No description"}
+        </Text>
+        <Text size="xs" c="dimmed" mt="md">
           {plural(room.memberCount, "member")} · Updated {timeAgo(room.updatedAt)}
-        </p>
-      </Link>
+        </Text>
+      </Card>
     </li>
   );
 }
