@@ -15,7 +15,9 @@ You'll land on the login page; create an account from there.
 
 ## Layout
 
-- `src/pages/` Login, Signup, Home (logged-in placeholder)
+- `src/pages/` Login, Signup, Rooms (home), Room (tabs: materials, quizzes, tutor, progress, members)
+- `src/components/` layout, modal, form fields, room form
+- `src/hooks/` React Query hooks for server data
 - `src/auth/` session state (`AuthContext`) and route guards
 - `src/lib/api.ts` API client; the login token is kept in localStorage
 - `src/quiz/` question parser + tests, kept for the quiz features that come next

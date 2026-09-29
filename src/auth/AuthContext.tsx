@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, ApiError, tokenStore, type AuthResponse, type User } from "../lib/api.ts";
+import { useQueryClient } from "@tanstack/react-query";
+import { api, ApiError, onUnauthorized, tokenStore, type AuthResponse, type User } from "../lib/api.ts";
 
 type Status = "loading" | "authenticated" | "anonymous";
 
@@ -9,11 +10,16 @@ interface AuthContextValue {
   signup: (input: { name: string; email: string; password: string }) => Promise<void>;
   login: (input: { email: string; password: string }) => Promise<void>;
   logout: () => void;
+  /** Replace the cached user after a profile change. */
+  updateUser: (user: User) => void;
+  /** Swap in a new session token (after a password change) without logging out. */
+  replaceToken: (token: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<Status>(() => (tokenStore.get() ? "loading" : "anonymous"));
 
@@ -39,6 +45,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [status]);
 
+  // Any request rejected with 401 means the session is over.
+  useEffect(() => {
+    onUnauthorized(() => {
+      tokenStore.clear();
+      queryClient.clear();
+      setUser(null);
+      setStatus("anonymous");
+    });
+    return () => onUnauthorized(null);
+  }, [queryClient]);
+
   const accept = useCallback(({ user, token }: AuthResponse) => {
     tokenStore.set(token);
     setUser(user);
@@ -51,13 +68,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       signup: async input => accept(await api.signup(input)),
       login: async input => accept(await api.login(input)),
+      updateUser: setUser,
+      replaceToken: token => tokenStore.set(token),
       logout: () => {
         tokenStore.clear();
+        // Drop cached data so the next person on this browser never sees it.
+        queryClient.clear();
         setUser(null);
         setStatus("anonymous");
       },
     }),
-    [status, user, accept],
+    [status, user, accept, queryClient],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -5,6 +5,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  avatarUrl: string | null;
   createdAt: string;
 }
 
@@ -51,10 +52,18 @@ interface ErrorBody {
   validationErrors?: { path: (string | number)[]; message: string }[];
 }
 
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Called when a logged-in request comes back 401. Set by AuthProvider. */
+export function onUnauthorized(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = tokenStore.get();
   const headers = new Headers(init.headers);
-  if (init.body) headers.set("Content-Type", "application/json");
+  // FormData sets its own multipart boundary; everything else is JSON.
+  if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   let response: Response;
@@ -65,6 +74,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   const body: unknown = await response.json().catch(() => null);
+
+  // A saved token the server no longer accepts (expired, account deleted): end the session.
+  if (response.status === 401 && token) unauthorizedHandler?.();
 
   if (!response.ok) {
     const { message, validationErrors = [] } = (body ?? {}) as ErrorBody;
@@ -84,10 +96,59 @@ export interface AuthResponse {
   token: string;
 }
 
+export type RoomRole = "owner" | "member";
+
+export interface Room {
+  id: string;
+  name: string;
+  description: string;
+  role: RoomRole;
+  memberCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoomMember {
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  role: RoomRole;
+  joinedAt: string;
+}
+
+export interface RoomInput {
+  name: string;
+  description: string;
+}
+
 export const api = {
   signup: (input: { name: string; email: string; password: string }) =>
     request<AuthResponse>("/auth/signup", { method: "POST", body: JSON.stringify(input) }),
   login: (input: { email: string; password: string }) =>
     request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(input) }),
   me: () => request<{ user: User }>("/app/profile"),
+  updateProfile: (input: { name: string }) =>
+    request<{ user: User }>("/app/profile", { method: "PUT", body: JSON.stringify(input) }),
+  uploadAvatar: (image: Blob, filename: string) => {
+    const form = new FormData();
+    form.append("avatar", image, filename);
+    return request<{ user: User }>("/app/profile/avatar", { method: "PUT", body: form });
+  },
+  removeAvatar: () => request<{ user: User }>("/app/profile/avatar", { method: "DELETE" }),
+  changePassword: (input: { currentPassword: string; newPassword: string }) =>
+    request<{ token: string }>("/app/profile/password", { method: "PUT", body: JSON.stringify(input) }),
+  deleteAccount: (input: { password: string }) =>
+    request<{ user: { id: string } }>("/app/profile", { method: "DELETE", body: JSON.stringify(input) }),
+
+  rooms: () => request<{ rooms: Room[] }>("/app/rooms?limit=100"),
+  room: (roomId: string) => request<{ room: Room; members: RoomMember[] }>(`/app/rooms/${encodeURIComponent(roomId)}`),
+  createRoom: (input: RoomInput) =>
+    request<{ room: Room }>("/app/rooms", { method: "POST", body: JSON.stringify(input) }),
+  updateRoom: (roomId: string, input: RoomInput) =>
+    request<{ room: Omit<Room, "role" | "memberCount"> }>(`/app/rooms/${encodeURIComponent(roomId)}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  deleteRoom: (roomId: string) =>
+    request<{ room: { id: string } }>(`/app/rooms/${encodeURIComponent(roomId)}`, { method: "DELETE" }),
 };
