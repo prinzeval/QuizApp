@@ -33,14 +33,18 @@ const promptOf = (figure: Figure) =>
  * front covers the captions and labels; the back shows them with what the
  * picture teaches. Labelled figures can also be practised by dragging labels.
  */
-export function ImageCards({ roomId, figures }: { roomId: string; figures: Figure[] }) {
-  const [index, setIndex] = useState(0);
+export function ImageCards({ roomId, figures, growing = false }: { roomId: string; figures: Figure[]; growing?: boolean }) {
+  // New cards can arrive while you study: keep your place by card, not by number.
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const found = figures.findIndex(entry => entry.id === currentId);
+  const index = found === -1 ? 0 : found;
+  const setIndex = (next: number) => setCurrentId(figures[next]?.id ?? null);
   const [flipped, setFlipped] = useState(false);
   const [mode, setMode] = useState<"flip" | "label">("flip");
   const [enlarged, setEnlarged] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
 
-  const figure = figures[Math.min(index, figures.length - 1)];
+  const figure = figures[index];
 
   const go = (to: number) => {
     if (to < 0 || to >= figures.length) return;
@@ -76,10 +80,11 @@ export function ImageCards({ roomId, figures }: { roomId: string; figures: Figur
   const location = figure.page ? `Page ${figure.page}` : figure.location;
 
   return (
-    <Stack gap="md" maw={880} mx="auto">
+    <Stack gap="md" w="100%" maw={880} mx="auto">
       <Group justify="space-between" gap="sm" wrap="nowrap">
         <Text size="sm" c="dimmed" data-testid="card-counter">
           Card {index + 1} of {figures.length}
+          {growing ? " · more coming" : ""}
         </Text>
         {canLabel(figure) && (
           <SegmentedControl

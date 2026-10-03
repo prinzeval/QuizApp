@@ -199,6 +199,8 @@ function ItemRow({
   const sources = item.materials.length === 1 ? item.materials[0].title : plural(item.materials.length, "source");
   const size = item.kind === "image_cards" ? plural(item.size, "picture") : plural(item.size, "topic");
   const progress = item.progress && item.progress.total > 0 ? item.progress : null;
+  // Image cards can be opened as soon as the first ones are found.
+  const openable = item.status === "ready" || (item.kind === "image_cards" && item.size > 0);
 
   const body = (
     <Group gap="sm" wrap="nowrap" px="md" py="sm" miw={0} flex={1}>
@@ -213,9 +215,9 @@ function ItemRow({
           <Stack gap={4} role="status">
             <Text size="xs" c="dimmed">
               {item.kind === "image_cards"
-                ? progress
-                  ? `Looking for pictures… ${progress.done} of ${progress.total} checked`
-                  : "Looking for pictures…"
+                ? `Looking for pictures…${progress ? ` ${progress.done} of ${progress.total} checked` : ""}${
+                    item.size > 0 ? ` · ${plural(item.size, "card")} ready to study` : ""
+                  }`
                 : "Mapping the topics…"}
             </Text>
             {progress && <Progress value={(100 * progress.done) / progress.total} size="xs" color={tool.color} maw={260} aria-hidden="true" />}
@@ -223,6 +225,7 @@ function ItemRow({
         ) : item.status === "failed" ? (
           <Text size="xs" c="red" lineClamp={2}>
             {item.error ?? "Something went wrong."}
+            {item.kind === "image_cards" && item.size > 0 ? ` ${plural(item.size, "card")} ready to study.` : ""}
           </Text>
         ) : (
           <Text size="xs" c="dimmed" lineClamp={1}>
@@ -230,7 +233,7 @@ function ItemRow({
           </Text>
         )}
       </Stack>
-      {item.status === "ready" && <IconChevronRight size={18} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} aria-hidden="true" />}
+      {openable && <IconChevronRight size={18} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} aria-hidden="true" />}
     </Group>
   );
 
@@ -245,7 +248,7 @@ function ItemRow({
       data-status={item.status}
       data-kind={item.kind}
     >
-      {item.status === "ready" ? (
+      {openable ? (
         <UnstyledButton component={Link} to={`/rooms/${roomId}/studio/${item.id}`} miw={0} flex={1} display="flex" aria-label={`Open ${tool.label}: ${item.title}`}>
           {body}
         </UnstyledButton>
