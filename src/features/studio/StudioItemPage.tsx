@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { Alert, Button, Center, EmptyState, Group, Loader, Progress, Stack, Text, ThemeIcon, Title, VisuallyHidden } from "@mantine/core";
 import { IconAlertTriangle, IconChevronLeft, IconRefresh } from "@tabler/icons-react";
 import { useAuth } from "../../auth/AuthContext.tsx";
-import { useRetryStudioItem, useStudioItem } from "../../hooks/learning.ts";
+import { useRefreshStudioItem, useRetryStudioItem, useStudioItem } from "../../hooks/learning.ts";
 import { useRoom } from "../../hooks/rooms.ts";
 import type { StudioItem } from "../../lib/learningApi.ts";
 import { notify } from "../../notify.ts";
@@ -89,9 +89,44 @@ export function StudioItemPage() {
       ) : "map" in data ? (
         <MindMap itemId={item.id} roomId={roomId} nodes={data.map.nodes} links={data.map.links} figures={data.figures} />
       ) : (
-        <ImageCards roomId={roomId} figures={data.figures} />
+        <Stack gap="md">
+          <ImageCards roomId={roomId} figures={data.figures} />
+          <LookAgain roomId={roomId} item={item} />
+        </Stack>
       )}
     </>
+  );
+}
+
+/** Looks through the files again from scratch, e.g. so a diagram without printed labels gets AI labels. */
+function LookAgain({ roomId, item }: { roomId: string; item: StudioItem }) {
+  const { user } = useAuth();
+  const room = useRoom(roomId);
+  const refresh = useRefreshStudioItem(roomId);
+  const canManage = room.data?.room.role === "owner" || (!!user && item.createdBy === user.id);
+  if (!canManage) return null;
+
+  return (
+    <Group justify="center" gap="xs">
+      <Text size="xs" c="dimmed">
+        Missing pictures or labels?
+      </Text>
+      <Button
+        size="xs"
+        variant="subtle"
+        leftSection={<IconRefresh size={14} />}
+        loading={refresh.isPending}
+        data-testid="look-again"
+        onClick={() =>
+          refresh.mutate(item.id, {
+            onSuccess: () => notify("Looking through your files again…", "info"),
+            onError: error => notify(error.message, "error"),
+          })
+        }
+      >
+        Look through again
+      </Button>
+    </Group>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Badge, Button, Group, Stack, Text, ThemeIcon } from "@mantine/core";
-import { IconCheck, IconHandFinger, IconX } from "@tabler/icons-react";
+import { IconCheck, IconHandFinger, IconSparkles, IconX } from "@tabler/icons-react";
 import type { Box as FigureBox, Figure, QuestionFigure, QuestionReview } from "../../lib/learningApi.ts";
 import { FigureCrop, FigureModal, type Placement } from "../figures/FigureCrop.tsx";
 import classes from "../figures/Figure.module.css";
@@ -37,8 +37,29 @@ export function isPictureAnswerComplete(type: string, value: string, spots: numb
 }
 
 /** The figure a question shows, from either the question (covered) or its review (revealed). */
-function figureMasks(figure: Figure): FigureBox[] {
-  return [...(figure.captionBox ? [figure.captionBox] : []), ...figure.labels.map(label => label.textBox)];
+export function figureMasks(figure: Figure): FigureBox[] {
+  // AI labels aren't printed on the picture, so there's nothing of theirs to cover.
+  return [...(figure.captionBox ? [figure.captionBox] : []), ...(figure.aiLabels ? [] : figure.labels.map(label => label.textBox))];
+}
+
+/**
+ * Where a label spot goes: over the printed label it replaces, or, for AI
+ * labels, a small tag centred on the part (sized to its text).
+ */
+export function zoneStyle(place: (box: FigureBox, pad?: number) => CSSProperties, box: FigureBox, aiLabels: boolean): CSSProperties {
+  if (!aiLabels) return place(box, ZONE_PAD);
+  const { left, top } = place([box[0] + box[2] / 2, box[1] + box[3] / 2, 0, 0]);
+  return { left, top, transform: "translate(-50%, -50%)", maxWidth: "45%", padding: "1px 6px", whiteSpace: "nowrap" };
+}
+
+/** Says plainly when the labels are the AI's, not the lecturer's. */
+export function AiLabelsNote() {
+  return (
+    <Group gap={6} c="dimmed" data-testid="ai-labels-note">
+      <IconSparkles size={14} aria-hidden="true" />
+      <Text size="xs">Labelled by AI, not from your file</Text>
+    </Group>
+  );
 }
 
 /* ------------------------------------------------------- a picture to answer */
@@ -195,7 +216,7 @@ export function LabelImage({ roomId, figure, options, value, onChange, locked, r
       if (revealed) {
         const label = revealed.labels[index]?.text ?? "";
         return (
-          <div key={index} className={classes.zone} style={place(zone, ZONE_PAD)} data-state={isRight(index) ? "correct" : "wrong"} title={label}>
+          <div key={index} className={classes.zone} style={zoneStyle(place, zone, figure.aiLabels)} data-state={isRight(index) ? "correct" : "wrong"} title={label}>
             <span className={classes.zoneText}>{label}</span>
           </div>
         );
@@ -206,7 +227,7 @@ export function LabelImage({ roomId, figure, options, value, onChange, locked, r
           key={index}
           type="button"
           className={classes.zone}
-          style={place(zone, ZONE_PAD)}
+          style={zoneStyle(place, zone, figure.aiLabels)}
           data-zone={index}
           data-filled={option !== null || undefined}
           data-over={over === index || undefined}
@@ -238,6 +259,7 @@ export function LabelImage({ roomId, figure, options, value, onChange, locked, r
   return (
     <Stack gap="md">
       {crop(MAX_HEIGHT)}
+      {figure.aiLabels && <AiLabelsNote />}
 
       {answering && (
         <Stack gap={8}>
@@ -383,6 +405,7 @@ export function LocateImage({ roomId, figure, value, onChange, locked, review }:
   return (
     <Stack gap="xs">
       {crop(MAX_HEIGHT)}
+      {figure.aiLabels && <AiLabelsNote />}
       {answering && (
         <Group gap={6} c="dimmed">
           <IconHandFinger size={16} aria-hidden="true" />

@@ -6,11 +6,10 @@ import { IconArrowLeft, IconArrowRight, IconCheck, IconEye, IconExternalLink, Ic
 import type { Figure, QuestionFigure } from "../../lib/learningApi.ts";
 import { viewerPath } from "../materials/paths.ts";
 import { FigureCrop, FigureModal } from "../figures/FigureCrop.tsx";
-import { LabelImage, parsePlacement } from "../quizzes/PictureQuestion.tsx";
+import { AiLabelsNote, LabelImage, figureMasks, parsePlacement, zoneStyle } from "../quizzes/PictureQuestion.tsx";
 import classes from "../figures/Figure.module.css";
 
 const MAX_HEIGHT = 460;
-const ZONE_PAD = 0.006;
 
 const shuffle = <T,>(items: T[]) => {
   const copy = [...items];
@@ -21,7 +20,7 @@ const shuffle = <T,>(items: T[]) => {
   return copy;
 };
 
-const masksOf = (figure: Figure) => [...(figure.captionBox ? [figure.captionBox] : []), ...figure.labels.map(label => label.textBox)];
+const masksOf = figureMasks;
 const canLabel = (figure: Figure) => figure.labels.length >= 2;
 
 /** What the front of a card asks. */
@@ -136,7 +135,7 @@ export function ImageCards({ roomId, figures, growing = false }: { roomId: strin
               overlay={({ place }) =>
                 flipped
                   ? figure.labels.map((label, labelIndex) => (
-                      <div key={labelIndex} className={classes.zone} style={place(label.textBox, ZONE_PAD)} data-state="correct" title={label.text}>
+                      <div key={labelIndex} className={classes.zone} style={zoneStyle(place, label.textBox, figure.aiLabels)} data-state="correct" title={label.text}>
                         <span className={classes.zoneText}>{label.text}</span>
                       </div>
                     ))
@@ -167,6 +166,7 @@ export function ImageCards({ roomId, figures, growing = false }: { roomId: strin
                 <Badge variant="light" color="gray" tt="none" radius="sm">
                   {figure.kind === "group" ? "Pictures" : figure.kind[0].toUpperCase() + figure.kind.slice(1)}
                 </Badge>
+                {figure.aiLabels && mode === "flip" && <AiLabelsNote />}
               </Group>
               <Title order={3} size="h4" style={{ overflowWrap: "anywhere" }}>
                 {figure.caption ?? figure.title}
@@ -248,7 +248,7 @@ function LabelPractice({ roomId, figure }: { roomId: string; figure: Figure }) {
           label={`${figure.title}: ${score} of ${figure.labels.length} labels right`}
           overlay={({ place }) =>
             figure.labels.map((label, index) => (
-              <div key={index} className={classes.zone} style={place(label.textBox, ZONE_PAD)} data-state={right[index] ? "correct" : "wrong"} title={label.text}>
+              <div key={index} className={classes.zone} style={zoneStyle(place, label.textBox, figure.aiLabels)} data-state={right[index] ? "correct" : "wrong"} title={label.text}>
                 <span className={classes.zoneText}>{label.text}</span>
               </div>
             ))

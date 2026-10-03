@@ -63,6 +63,8 @@ export interface FigurePlacement {
   /** Width / height of the page (or picture) the boxes are relative to. */
   aspect: number;
   box: Box;
+  /** The labels were named by the AI because none were printed: not from the file. */
+  aiLabels: boolean;
 }
 
 /** A figure with its answers: for studying (image cards) and reviews. */
@@ -368,6 +370,7 @@ export const learningApi = {
   createStudioItem: (roomId: string, input: { kind: StudioKind; materialIds: string[] }) =>
     request<{ item: StudioItem }>(`${room(roomId)}/studio`, json("POST", input)),
   deleteStudioItem: (roomId: string, itemId: string) => request<unknown>(`${room(roomId)}/studio/${itemId}`, json("DELETE")),
+  refreshStudioItem: (roomId: string, itemId: string) => request<{ item: StudioItem }>(`${room(roomId)}/studio/${itemId}/refresh`, json("POST")),
   retryStudioItem: (roomId: string, itemId: string) => request<{ item: StudioItem }>(`${room(roomId)}/studio/${itemId}/retry`, json("POST")),
 
   // progress

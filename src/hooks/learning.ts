@@ -191,6 +191,18 @@ export function useDeleteStudioItem(roomId: string) {
   });
 }
 
+/** Looks through the cards' files again from scratch (picks up newer reading, like AI labels). */
+export function useRefreshStudioItem(roomId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => learningApi.refreshStudioItem(roomId, itemId),
+    onSuccess: (_, itemId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.studio(roomId), exact: true });
+      queryClient.invalidateQueries({ queryKey: queryKeys.studioItem(roomId, itemId), exact: true });
+    },
+  });
+}
+
 export function useRetryStudioItem(roomId: string) {
   const queryClient = useQueryClient();
   return useMutation({
