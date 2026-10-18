@@ -17,7 +17,8 @@ export function SignupPage() {
   const from = (location.state as { from?: string } | null)?.from ?? "/";
 
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  // Prefilled when login sent you here ("no account for this email").
+  const [email, setEmail] = useState(() => (location.state as { email?: string } | null)?.email ?? "");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");

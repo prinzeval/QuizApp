@@ -17,6 +17,8 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
+  // The email that has no account yet, to offer signing up with it.
+  const [unknownEmail, setUnknownEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
@@ -26,6 +28,7 @@ export function LoginPage() {
     if (!password) local.password = "Enter your password";
     setErrors(local);
     setFormError("");
+    setUnknownEmail("");
     if (Object.keys(local).length) return;
 
     setLoading(true);
@@ -33,9 +36,8 @@ export function LoginPage() {
       await login({ email, password });
       navigate(from, { replace: true });
     } catch (error) {
-      if (error instanceof ApiError && error.fieldErrors.password === "Incorrect email or password") {
-        // Show wrong credentials once, above the form, rather than blaming one field.
-        setFormError("Incorrect email or password.");
+      if (error instanceof ApiError && error.fieldErrors.email === "No account uses this email") {
+        setUnknownEmail(email.trim().toLowerCase());
       } else if (error instanceof ApiError && Object.keys(error.fieldErrors).length) {
         setErrors(error.fieldErrors);
       } else {
@@ -61,6 +63,15 @@ export function LoginPage() {
     >
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
+          {unknownEmail && (
+            <Alert color="clay" variant="light" icon={<IconAlertCircle size={18} />} role="alert" data-testid="no-account">
+              There's no account for <strong>{unknownEmail}</strong> yet.{" "}
+              <Anchor component={Link} to="/signup" state={{ ...(location.state as object | null), email: unknownEmail }} fw={600} inherit>
+                Create one
+              </Anchor>
+              , or check the spelling.
+            </Alert>
+          )}
           {formError && (
             <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert">
               {formError}
