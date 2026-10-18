@@ -54,6 +54,7 @@ import { SlidesPreview } from "./SlidesPreview.tsx";
 import type { PdfViewerHandle } from "./PdfPreview.tsx";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import classes from "./Viewer.module.css";
+import { usePageTitle } from "../../../hooks/usePageTitle.ts";
 
 const PdfPreview = lazy(() => import("./PdfPreview.tsx"));
 const DocxPreview = lazy(() => import("./DocxPreview.tsx"));
@@ -69,6 +70,7 @@ export function MaterialViewerPage() {
   const room = useRoom(roomId);
   const list = useMaterials(roomId);
   const detail = useMaterial(roomId, materialId);
+  usePageTitle(detail.data?.material.title);
   // The list is live-patched on every status/progress event, so prefer it.
   const material = list.data?.materials.find(m => m.id === materialId) ?? (list.isSuccess ? undefined : detail.data?.material);
   const back = `/rooms/${roomId}`;

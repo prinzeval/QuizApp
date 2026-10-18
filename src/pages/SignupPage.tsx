@@ -6,10 +6,12 @@ import { useAuth } from "../auth/AuthContext.tsx";
 import { ApiError, type FieldErrors } from "../lib/api.ts";
 import { AuthLayout } from "../components/AuthLayout.tsx";
 import { PasswordField, StrengthMeter } from "../components/PasswordField.tsx";
+import { usePageTitle } from "../hooks/usePageTitle.ts";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SignupPage() {
+  usePageTitle("Create an account");
   const { signup } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

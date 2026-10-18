@@ -10,18 +10,20 @@ import { formatDate, plural } from "../../lib/format.ts";
 import { notify } from "../../notify.ts";
 import { RoomAvatar } from "../../components/RoomAvatar.tsx";
 import { UserAvatar } from "../../components/UserAvatar.tsx";
+import { usePageTitle } from "../../hooks/usePageTitle.ts";
 
 /** Public page behind an invite link. Works logged in (join) or out (log in / sign up, then come back here). */
 export function InvitePage() {
   const { token = "" } = useParams();
   const preview = useInvitePreview(token);
+  usePageTitle(preview.data ? `Join ${preview.data.invite.room.name}` : "Invite");
 
   return (
     <Center component="main" mih="100dvh" bg="var(--app-canvas)" px="md" py={40} data-testid="invite-page">
       <Stack w="100%" maw={440} gap="lg">
         <Anchor component={Link} to="/" underline="never" c="inherit" style={{ alignSelf: "center" }} aria-label="SmartQuiz home">
           <Group gap={10} wrap="nowrap">
-            <Image src="/favicon.jpg" alt="" w={32} h={32} radius="md" />
+            <Image src="/icons/icon-192.png" alt="" w={32} h={32} radius="md" />
             <Text fw={700} size="lg">
               SmartQuiz
             </Text>

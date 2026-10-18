@@ -26,6 +26,7 @@ import { AvatarCropper } from "../components/AvatarCropper.tsx";
 import { PasswordField, StrengthMeter } from "../components/PasswordField.tsx";
 import { UserAvatar } from "../components/UserAvatar.tsx";
 import { FormModal } from "../components/FormModal.tsx";
+import { usePageTitle } from "../hooks/usePageTitle.ts";
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024; // before cropping; the upload itself is ~50 KB
@@ -37,6 +38,7 @@ const SECTIONS = [
 ];
 
 export function SettingsPage() {
+  usePageTitle("Profile & settings");
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const current = pathname.replace(/\/$/, "");

@@ -12,8 +12,10 @@ import { RoomForm } from "../components/RoomForm.tsx";
 import { RoomAvatar } from "../components/RoomAvatar.tsx";
 import type { Room } from "../lib/api.ts";
 import classes from "../components/InteractiveCard.module.css";
+import { usePageTitle } from "../hooks/usePageTitle.ts";
 
 export function RoomsPage() {
+  usePageTitle("Your study rooms");
   const { user } = useAuth();
   const rooms = useRooms();
   const createRoom = useCreateRoom();

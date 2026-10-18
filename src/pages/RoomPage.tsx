@@ -43,6 +43,7 @@ import { ProgressTab } from "../features/progress/ProgressTab.tsx";
 import { MembersTab } from "../features/members/MembersTab.tsx";
 import { PresenceStack } from "../features/members/PresenceStack.tsx";
 import { useRoomLive } from "../realtime/useRoomLive.ts";
+import { usePageTitle } from "../hooks/usePageTitle.ts";
 
 const TABS = [
   { id: "materials", label: "Materials", icon: IconFileText },
@@ -62,6 +63,7 @@ export function RoomPage() {
   const tab: TabId = TABS.some(t => t.id === tabParam) ? (tabParam as TabId) : "materials";
 
   const query = useRoom(roomId);
+  usePageTitle(query.data?.room.name);
   // Live updates + who's here; runs for the whole time the room page is open.
   const present = useRoomLive(roomId);
   // Icons only where there's room for them; on phones the tab list scrolls sideways.

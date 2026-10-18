@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /signup
+# Everything else is private, behind a login.
+Disallow: /rooms
+Disallow: /settings
+Disallow: /invite
+
+Sitemap: https://quiz-app-fawn-two-78.vercel.app/sitemap.xml

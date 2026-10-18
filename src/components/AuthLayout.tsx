@@ -5,7 +5,7 @@ import { Scribble } from "./Doodles.tsx";
 function Logo({ inverted = false }: { inverted?: boolean }) {
   return (
     <Group gap={10} wrap="nowrap">
-      <Image src="/favicon.jpg" alt="" w={32} h={32} radius="md" />
+      <Image src="/icons/icon-192.png" alt="" w={32} h={32} radius="md" />
       <Text fw={700} size="lg" c={inverted ? "white" : undefined}>
         SmartQuiz
       </Text>

@@ -6,8 +6,10 @@ import { useAuth } from "../auth/AuthContext.tsx";
 import { ApiError, type FieldErrors } from "../lib/api.ts";
 import { AuthLayout } from "../components/AuthLayout.tsx";
 import { PasswordField } from "../components/PasswordField.tsx";
+import { usePageTitle } from "../hooks/usePageTitle.ts";
 
 export function LoginPage() {
+  usePageTitle("Log in");
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

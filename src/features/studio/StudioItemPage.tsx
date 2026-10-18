@@ -12,12 +12,14 @@ import { useRoomLive } from "../../realtime/useRoomLive.ts";
 import { ImageCards } from "./ImageCards.tsx";
 import { MindMap } from "./MindMap.tsx";
 import { STUDIO_TOOLS } from "./studioKinds.ts";
+import { usePageTitle } from "../../hooks/usePageTitle.ts";
 
 /** Opens one Studio item: image cards or a mind map. */
 export function StudioItemPage() {
   const { roomId = "", itemId = "" } = useParams();
   useRoomLive(roomId);
   const query = useStudioItem(roomId, itemId);
+  usePageTitle(query.data?.item.title);
 
   const back = (
     <Button component={Link} to={`/rooms/${roomId}?tab=studio`} variant="subtle" color="gray" c="dimmed" fw={500} px={8} ml={-8} mb="md" leftSection={<IconChevronLeft size={16} aria-hidden="true" />}>

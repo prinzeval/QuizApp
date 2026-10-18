@@ -18,6 +18,7 @@ import { Results } from "./Results.tsx";
 import { StartScreen } from "./StartScreen.tsx";
 import type { AttemptData } from "./playerParts.tsx";
 import { isReview } from "./quizUtils.ts";
+import { usePageTitle } from "../../hooks/usePageTitle.ts";
 
 /** /rooms/:roomId/quizzes/:quizId — start screen, taking the quiz (?attempt=<id>) and results. */
 export function QuizPlayerPage() {
@@ -26,6 +27,7 @@ export function QuizPlayerPage() {
   useRoomLive(roomId);
   const room = useRoom(roomId);
   const quiz = useQuiz(roomId, quizId);
+  usePageTitle(quiz.data?.quiz.title);
   const [searchParams, setSearchParams] = useSearchParams();
   const attemptId = searchParams.get("attempt");
   const queryClient = useQueryClient();

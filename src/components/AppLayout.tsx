@@ -80,7 +80,7 @@ function Logo() {
   return (
     <UnstyledButton component={Link} to="/" aria-label="SmartQuiz home" display="flex" h={40} style={{ alignItems: "center" }}>
       <Group gap={10} wrap="nowrap">
-        <Image src="/favicon.jpg" alt="" w={28} h={28} radius="sm" />
+        <Image src="/icons/icon-192.png" alt="" w={28} h={28} radius="sm" />
         <Text fw={700} size="lg" style={{ letterSpacing: "-0.01em" }}>
           SmartQuiz
         </Text>
