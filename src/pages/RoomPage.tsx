@@ -42,6 +42,7 @@ import { TutorTab } from "../features/tutor/TutorTab.tsx";
 import { ProgressTab } from "../features/progress/ProgressTab.tsx";
 import { MembersTab } from "../features/members/MembersTab.tsx";
 import { PresenceStack } from "../features/members/PresenceStack.tsx";
+import { CallButton } from "../features/call/CallButton.tsx";
 import { useRoomLive } from "../realtime/useRoomLive.ts";
 import { usePageTitle } from "../hooks/usePageTitle.ts";
 
@@ -126,6 +127,7 @@ export function RoomPage() {
               {plural(room.memberCount, "member")} · You're {isOwner ? "the owner" : "a member"}
             </Text>
             <PresenceStack present={present} />
+            <CallButton roomId={room.id} roomName={room.name} />
           </Group>
         </Stack>
         {isOwner && (

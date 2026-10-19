@@ -53,6 +53,13 @@ export function useRoomLive(roomId: string): PresenceUser[] {
       queryClient.invalidateQueries({ queryKey: queryKeys.quiz(roomId, quizId), exact: true });
     });
 
+    // Someone started, answered, finished or changed sharing on a quiz: refresh its "Studying together" board.
+    const onQuizBoard = mine(({ quizId }: { roomId: string; quizId: string }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.quizBoard(roomId, quizId), exact: true });
+      // The quiz list shows who's taking each quiz right now.
+      queryClient.invalidateQueries({ queryKey: queryKeys.quizzes(roomId), exact: true });
+    });
+
     const onStudio = mine(({ itemId }: { roomId: string; itemId: string }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.studio(roomId), exact: true });
       queryClient.invalidateQueries({ queryKey: queryKeys.studioItem(roomId, itemId), exact: true });
@@ -68,6 +75,7 @@ export function useRoomLive(roomId: string): PresenceUser[] {
     socket.on("material:deleted", onMaterialDeleted);
     socket.on("quiz:updated", onQuiz);
     socket.on("quiz:deleted", onQuiz);
+    socket.on("quiz:board", onQuizBoard);
     socket.on("studio:updated", onStudio);
     socket.on("studio:deleted", onStudio);
     if (socket.connected) join();
@@ -84,6 +92,7 @@ export function useRoomLive(roomId: string): PresenceUser[] {
       socket.off("material:deleted", onMaterialDeleted);
       socket.off("quiz:updated", onQuiz);
       socket.off("quiz:deleted", onQuiz);
+      socket.off("quiz:board", onQuizBoard);
       socket.off("studio:updated", onStudio);
       socket.off("studio:deleted", onStudio);
       setPresent([]);

@@ -27,6 +27,7 @@
   "dependencies": {
     "@ai-sdk/react": "^4.0.125",
     "@dagrejs/dagre": "^3.1.1",
+    "@livekit/components-react": "^2.9.24",
     "@mantine/charts": "^9.6.3",
     "@mantine/core": "^9.6.3",
     "@mantine/dropzone": "^9.6.3",
@@ -38,6 +39,7 @@
     "ai": "^7.0.122",
     "docx-preview": "^0.4.1",
     "katex": "^0.18.9",
+    "livekit-client": "^2.23.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0",

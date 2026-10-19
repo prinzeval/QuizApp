@@ -178,6 +178,8 @@ export interface QuizSummary {
   materials: { id: string; title: string }[];
   myCompletedAttempts: number;
   myBestScore: number | null;
+  /** Members partway through this quiz right now (active in the last 10 minutes), you included. */
+  takingNow: { userId: string; name: string; avatarUrl: string | null }[];
 }
 
 /** A question as served for taking a quiz: no answers. */
@@ -199,6 +201,33 @@ export interface QuizAttempt {
   completedAt: string | null;
   correctCount: number | null;
   totalCount: number | null;
+  /** Whether the room sees this attempt's score (progress is always shown). */
+  shareScore: boolean;
+}
+
+/**
+ * One person's latest attempt on a quiz, for the "Studying together" board.
+ * The server applies privacy: `correct`/`score`/`bestScore` are null when the
+ * person hid their score (never for yourself), and `correct`/`score` are null
+ * for every unfinished exam (yours too).
+ */
+export interface BoardEntry {
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  isMe: boolean;
+  attemptId: string;
+  mode: QuizMode;
+  startedAt: string;
+  completedAt: string | null;
+  lastActivityAt: string;
+  answered: number;
+  total: number;
+  correct: number | null;
+  /** 0-100. */
+  score: number | null;
+  shareScore: boolean;
+  bestScore: number | null;
 }
 
 export interface QuestionSource {
@@ -352,8 +381,8 @@ export const learningApi = {
   createQuiz: (roomId: string, input: NewQuizInput) => request<{ quiz: QuizSummary }>(`${room(roomId)}/quizzes`, json("POST", input)),
   deleteQuiz: (roomId: string, quizId: string) => request<unknown>(`${room(roomId)}/quizzes/${quizId}`, json("DELETE")),
   retryQuiz: (roomId: string, quizId: string) => request<{ quiz: QuizSummary }>(`${room(roomId)}/quizzes/${quizId}/retry`, json("POST")),
-  startAttempt: (roomId: string, quizId: string, mode: QuizMode) =>
-    request<{ attempt: QuizAttempt }>(`${room(roomId)}/quizzes/${quizId}/attempts`, json("POST", { mode })),
+  startAttempt: (roomId: string, quizId: string, mode: QuizMode, shareScore?: boolean) =>
+    request<{ attempt: QuizAttempt }>(`${room(roomId)}/quizzes/${quizId}/attempts`, json("POST", { mode, shareScore })),
   attempt: (roomId: string, quizId: string, attemptId: string) =>
     request<{ attempt: QuizAttempt; questions: Array<QuestionReview | QuestionPending> }>(`${room(roomId)}/quizzes/${quizId}/attempts/${attemptId}`),
   answer: (roomId: string, quizId: string, attemptId: string, questionId: string, response: string) =>
@@ -363,6 +392,9 @@ export const learningApi = {
     ),
   completeAttempt: (roomId: string, quizId: string, attemptId: string) =>
     request<{ attempt: QuizAttempt; questions: QuestionReview[] }>(`${room(roomId)}/quizzes/${quizId}/attempts/${attemptId}/complete`, json("POST")),
+  quizBoard: (roomId: string, quizId: string) => request<{ board: BoardEntry[] }>(`${room(roomId)}/quizzes/${quizId}/board`),
+  setAttemptSharing: (roomId: string, quizId: string, attemptId: string, shareScore: boolean) =>
+    request<{ attempt: QuizAttempt }>(`${room(roomId)}/quizzes/${quizId}/attempts/${attemptId}/sharing`, json("PUT", { shareScore })),
 
   // studio
   studioItems: (roomId: string) => request<{ items: StudioItem[] }>(`${room(roomId)}/studio`),

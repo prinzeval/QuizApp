@@ -8,6 +8,7 @@ import { QuestionView } from "./QuestionView.tsx";
 import { FinishConfirm, RunnerHeader, focusOption, isActivatable, usePatchAttempt, useQuizKeys, type AttemptData } from "./playerParts.tsx";
 import { keyToOption } from "./quizUtils.ts";
 import { isPictureAnswerComplete } from "./PictureQuestion.tsx";
+import { StudyBoardPanel, StudyBoardStrip, useWideBoard } from "./StudyBoard.tsx";
 
 interface ExamRunnerProps {
   roomId: string;
@@ -31,6 +32,8 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
   const answer = useAnswer(roomId, quiz.id, attemptId);
   const patchAttempt = usePatchAttempt(roomId, quiz.id, attemptId);
   const mobile = useIsMobile();
+  const wide = useWideBoard();
+  const myAttempt = { id: attemptId, shareScore: data.attempt.shareScore ?? true };
 
   const [responses, setResponses] = useState<Record<string, string>>(() =>
     Object.fromEntries(data.questions.filter(q => q.response !== null).map(q => [q.id, q.response ?? ""])),
@@ -219,6 +222,7 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
     <Box ref={topRef} style={{ scrollMarginTop: 24 }}>
       <Grid gap={{ base: "md", md: 40 }}>
         <Grid.Col span={{ base: 12, md: 8 }}>
+          {!wide && <StudyBoardStrip roomId={roomId} quizId={quiz.id} myAttempt={myAttempt} />}
           <RunnerHeader
             title={quiz.title}
             mode="exam"
@@ -305,20 +309,23 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
 
         {!mobile && (
           <Grid.Col span={{ base: 12, md: 4 }}>
-            <Card padding="lg" style={{ position: "sticky", top: 24 }}>
-              <Stack gap="md">
-                <div>
-                  <Text fw={600}>Questions</Text>
-                  <Text size="sm" c="dimmed">
-                    {answeredCount} of {questions.length} answered
-                  </Text>
-                </div>
-                {navigator}
-                <Button variant="light" onClick={() => void finish()} loading={finishing} data-testid="finish-quiz-side">
-                  Finish exam
-                </Button>
-              </Stack>
-            </Card>
+            <Stack gap="md" style={{ position: "sticky", top: 24 }}>
+              <Card padding="lg">
+                <Stack gap="md">
+                  <div>
+                    <Text fw={600}>Questions</Text>
+                    <Text size="sm" c="dimmed">
+                      {answeredCount} of {questions.length} answered
+                    </Text>
+                  </div>
+                  {navigator}
+                  <Button variant="light" onClick={() => void finish()} loading={finishing} data-testid="finish-quiz-side">
+                    Finish exam
+                  </Button>
+                </Stack>
+              </Card>
+              {wide && <StudyBoardPanel roomId={roomId} quizId={quiz.id} myAttempt={myAttempt} listMaxHeight={260} />}
+            </Stack>
           </Grid.Col>
         )}
       </Grid>

@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { ActionIcon, Badge, Button, Card, Group, Loader, Menu, RingProgress, Skeleton, Stack, Text, Title, Tooltip } from "@mantine/core";
+import { ActionIcon, Avatar, Badge, Button, Card, Group, Loader, Menu, RingProgress, Skeleton, Stack, Text, Title, Tooltip } from "@mantine/core";
 import { IconAlertTriangle, IconDots, IconPlayerPlay, IconRefresh, IconRotate, IconTrash } from "@tabler/icons-react";
 import type { QuizSummary } from "../../lib/learningApi.ts";
-import { plural, timeAgo } from "../../lib/format.ts";
+import { initials, plural, timeAgo } from "../../lib/format.ts";
+import { useAuth } from "../../auth/AuthContext.tsx";
 import { DIFFICULTY_COLOR, DIFFICULTY_LABEL, TYPE_LABEL, scoreColor } from "./quizUtils.ts";
 
 interface QuizCardProps {
@@ -84,6 +85,8 @@ export function QuizCard({ quiz, roomId, canManage, isMine, retrying, onRetry, o
         )}
       </Group>
 
+      {quiz.status === "ready" && <TakingNow quiz={quiz} />}
+
       {quiz.status === "generating" && (
         <Stack gap={8} mt="md" flex={1}>
           <Text size="sm" c="dimmed" role="status">
@@ -149,5 +152,40 @@ export function QuizCard({ quiz, roomId, canManage, isMine, retrying, onRetry, o
         )}
       </Group>
     </Card>
+  );
+}
+
+/** "2 taking now" with their faces: other members partway through this quiz (from the quiz list itself). */
+function TakingNow({ quiz }: { quiz: QuizSummary }) {
+  const { user } = useAuth();
+  const takers = quiz.takingNow.filter(person => person.userId !== user?.id);
+  if (takers.length === 0) return null;
+  const shown = takers.slice(0, 3);
+  const names = takers.map(person => person.name).join(", ");
+
+  return (
+    <Tooltip label={`Taking it now: ${names}`} withArrow multiline maw={260}>
+      <Group gap={6} wrap="nowrap" mt="sm" data-testid="quiz-card-live" aria-label={`${takers.length} taking it now: ${names}`}>
+        <span
+          aria-hidden="true"
+          style={{ width: 8, height: 8, flexShrink: 0, borderRadius: "50%", background: "var(--mantine-color-teal-6)", boxShadow: "0 0 0 3px var(--mantine-color-teal-light)" }}
+        />
+        <Avatar.Group spacing={6}>
+          {shown.map(person => (
+            <Avatar key={person.userId} src={person.avatarUrl} size={22} radius="xl" color="clay" alt="">
+              {initials(person.name)}
+            </Avatar>
+          ))}
+          {takers.length > shown.length && (
+            <Avatar size={22} radius="xl">
+              +{takers.length - shown.length}
+            </Avatar>
+          )}
+        </Avatar.Group>
+        <Text size="xs" c="dimmed" fw={500}>
+          {takers.length} taking now
+        </Text>
+      </Group>
+    </Tooltip>
   );
 }

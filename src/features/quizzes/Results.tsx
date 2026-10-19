@@ -9,18 +9,19 @@ import { BlankPrompt } from "./QuestionView.tsx";
 import { SourceNote } from "./SourceNote.tsx";
 import { LabelImageReview, LocateImageReview } from "./PictureQuestion.tsx";
 import { FigureCrop } from "../figures/FigureCrop.tsx";
+import { ResultsBoard } from "./StudyBoard.tsx";
 import { MODE_LABEL, OPTION_LETTERS, TYPE_LABEL, correctText, percent, responseText, scoreColor, scoreMessage, topicBreakdown } from "./quizUtils.ts";
 
 interface ResultsProps {
   roomId: string;
-
+  quizId: string;
   attempt: QuizAttempt;
   reviews: QuestionReview[];
   starting: QuizMode | null;
   onStart: (mode: QuizMode) => void;
 }
 
-export function Results({ roomId, attempt, reviews, starting, onStart }: ResultsProps) {
+export function Results({ roomId, quizId, attempt, reviews, starting, onStart }: ResultsProps) {
   const correct = attempt.correctCount ?? reviews.filter(r => r.isCorrect).length;
   const total = attempt.totalCount ?? reviews.length;
   const score = percent(correct, total);
@@ -90,6 +91,8 @@ export function Results({ roomId, attempt, reviews, starting, onStart }: Results
           </Group>
         </Stack>
       </Card>
+
+      <ResultsBoard roomId={roomId} quizId={quizId} />
 
       {topics.length > 1 && (
         <Card>

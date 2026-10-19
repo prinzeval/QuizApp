@@ -36,8 +36,13 @@ import { useIsMobile } from "../hooks/useIsMobile.ts";
 import { useRooms } from "../hooks/rooms.ts";
 import { RoomAvatar } from "./RoomAvatar.tsx";
 import { UserAvatar } from "./UserAvatar.tsx";
+import { CallProvider } from "../features/call/CallProvider.tsx";
+import { CallSpacer } from "../features/call/CallSpacer.tsx";
 
-/** Shell for every logged-in page: sidebar (a drawer below `sm`) + page content. */
+/**
+ * Shell for every logged-in page: sidebar (a drawer below `sm`) + page content.
+ * The study call lives here, above the routes, so it survives moving between pages.
+ */
 export function AppLayout() {
   const [opened, { toggle, close }] = useDisclosure(false);
   const location = useLocation();
@@ -47,32 +52,35 @@ export function AppLayout() {
   useWindowEvent("keydown", event => event.key === "Escape" && close());
 
   return (
-    <AppShell
-      header={{ height: { base: 56, sm: 0 } }}
-      navbar={{ width: 264, breakpoint: "sm", collapsed: { mobile: !opened } }}
-      padding={0}
-      bg="var(--app-canvas)"
-    >
-      <AppShell.Header hiddenFrom="sm" px="md" bg="var(--app-canvas)">
-        <Group h="100%" justify="space-between" wrap="nowrap">
-          <Group gap="xs" wrap="nowrap">
-            <Burger opened={opened} onClick={toggle} size="sm" w={40} h={40} aria-label={opened ? "Close menu" : "Open menu"} />
-            <Logo />
+    <CallProvider>
+      <AppShell
+        header={{ height: { base: 56, sm: 0 } }}
+        navbar={{ width: 264, breakpoint: "sm", collapsed: { mobile: !opened } }}
+        padding={0}
+        bg="var(--app-canvas)"
+      >
+        <AppShell.Header hiddenFrom="sm" px="md" bg="var(--app-canvas)">
+          <Group h="100%" justify="space-between" wrap="nowrap">
+            <Group gap="xs" wrap="nowrap">
+              <Burger opened={opened} onClick={toggle} size="sm" w={40} h={40} aria-label={opened ? "Close menu" : "Open menu"} />
+              <Logo />
+            </Group>
+            <MobileAvatarLink />
           </Group>
-          <MobileAvatarLink />
-        </Group>
-      </AppShell.Header>
+        </AppShell.Header>
 
-      <AppShell.Navbar aria-label="Main navigation" bg="var(--app-sidebar)">
-        <Sidebar />
-      </AppShell.Navbar>
+        <AppShell.Navbar aria-label="Main navigation" bg="var(--app-sidebar)">
+          <Sidebar />
+        </AppShell.Navbar>
 
-      <AppShell.Main bg="var(--app-canvas)">
-        <Container size="lg" px={{ base: "md", sm: "xl" }} py={{ base: "lg", sm: 40 }}>
-          <Outlet />
-        </Container>
-      </AppShell.Main>
-    </AppShell>
+        <AppShell.Main bg="var(--app-canvas)">
+          <Container size="lg" px={{ base: "md", sm: "xl" }} py={{ base: "lg", sm: 40 }}>
+            <Outlet />
+            <CallSpacer />
+          </Container>
+        </AppShell.Main>
+      </AppShell>
+    </CallProvider>
   );
 }
 

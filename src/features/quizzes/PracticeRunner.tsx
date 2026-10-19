@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Alert, Box, Button, Group, Kbd, Paper, Stack, Text, ThemeIcon, VisuallyHidden } from "@mantine/core";
 import { IconAlertCircle, IconArrowRight, IconCheck, IconFlag, IconX } from "@tabler/icons-react";
-import { useAnswer } from "../../hooks/learning.ts";
+import { useAnswer, useQuizBoard } from "../../hooks/learning.ts";
 import { useIsMobile } from "../../hooks/useIsMobile.ts";
 import type { QuestionReview, QuizQuestion, QuizSummary } from "../../lib/learningApi.ts";
 import { QuestionView } from "./QuestionView.tsx";
@@ -9,6 +9,7 @@ import { SourceNote } from "./SourceNote.tsx";
 import { FinishConfirm, RunnerHeader, focusOption, isActivatable, usePatchAttempt, useQuizKeys, type AttemptData } from "./playerParts.tsx";
 import { correctText, isReview, keyToOption } from "./quizUtils.ts";
 import { isPictureAnswerComplete } from "./PictureQuestion.tsx";
+import { StudyBoardPanel, StudyBoardStrip, useWideBoard } from "./StudyBoard.tsx";
 
 interface PracticeRunnerProps {
   roomId: string;
@@ -26,6 +27,10 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
   const answer = useAnswer(roomId, quiz.id, attemptId);
   const patchAttempt = usePatchAttempt(roomId, quiz.id, attemptId);
   const mobile = useIsMobile();
+  const wide = useWideBoard();
+  // Only make room for the side panel when there's a board to show.
+  const board = useQuizBoard(roomId, quiz.id);
+  const myAttempt = { id: attemptId, shareScore: data.attempt.shareScore ?? true };
 
   const [reviews, setReviews] = useState<Record<string, QuestionReview>>(() =>
     Object.fromEntries(data.questions.filter(isReview).map(q => [q.id, q])),
@@ -117,101 +122,110 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
   const verdict = review ? (review.isCorrect ? "Correct!" : "Not quite") : "";
 
   return (
-    <Box ref={topRef} style={{ scrollMarginTop: 24 }}>
-      <RunnerHeader
-        title={quiz.title}
-        mode="practice"
-        index={index}
-        total={questions.length}
-        done={answeredCount}
-        right={
-          <Group gap="xs" wrap="nowrap">
-            {answeredCount > 0 && (
-              <Text size="sm" c="dimmed" visibleFrom="xs" style={{ whiteSpace: "nowrap" }}>
-                {correctCount} correct
-              </Text>
-            )}
-            <Button variant="subtle" color="gray" size="sm" leftSection={<IconFlag size={16} />} onClick={() => setConfirming(true)} data-testid="end-early">
-              End
-            </Button>
-          </Group>
-        }
-      />
-
-      <Stack gap="xl">
-        <QuestionView
-          roomId={roomId}
-          key={question.id}
-          question={question}
-          value={value}
-          onChange={setDraft}
-          onSubmit={() => (review ? next() : submit())}
-          review={review}
-          disabled={answer.isPending}
-          headingRef={headingRef}
-          inputRef={inputRef}
+    <Group ref={topRef} style={{ scrollMarginTop: 24 }} align="flex-start" wrap="nowrap" gap={40}>
+      <Box flex={1} miw={0} maw={720}>
+        {!wide && <StudyBoardStrip roomId={roomId} quizId={quiz.id} myAttempt={myAttempt} />}
+        <RunnerHeader
+          title={quiz.title}
+          mode="practice"
+          index={index}
+          total={questions.length}
+          done={answeredCount}
+          right={
+            <Group gap="xs" wrap="nowrap">
+              {answeredCount > 0 && (
+                <Text size="sm" c="dimmed" visibleFrom="xs" style={{ whiteSpace: "nowrap" }}>
+                  {correctCount} correct
+                </Text>
+              )}
+              <Button variant="subtle" color="gray" size="sm" leftSection={<IconFlag size={16} />} onClick={() => setConfirming(true)} data-testid="end-early">
+                End
+              </Button>
+            </Group>
+          }
         />
 
-        <VisuallyHidden role="status" aria-live="polite">
-          {review ? `${verdict} ${review.isCorrect ? "" : `The answer is ${correctText(review).answer}.`}` : ""}
-        </VisuallyHidden>
+        <Stack gap="xl">
+          <QuestionView
+            roomId={roomId}
+            key={question.id}
+            question={question}
+            value={value}
+            onChange={setDraft}
+            onSubmit={() => (review ? next() : submit())}
+            review={review}
+            disabled={answer.isPending}
+            headingRef={headingRef}
+            inputRef={inputRef}
+          />
 
-        {review && <Feedback review={review} />}
+          <VisuallyHidden role="status" aria-live="polite">
+            {review ? `${verdict} ${review.isCorrect ? "" : `The answer is ${correctText(review).answer}.`}` : ""}
+          </VisuallyHidden>
 
-        {answer.isError && (
-          <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert" title="Couldn't check your answer">
-            <Text size="sm">{answer.error.message}</Text>
-            <Button size="xs" variant="light" color="red" mt="xs" onClick={submit}>
-              Try again
-            </Button>
-          </Alert>
-        )}
+          {review && <Feedback review={review} />}
 
-        {finishError && (
-          <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert" title="Couldn't finish the quiz">
-            <Text size="sm">{finishError}</Text>
-            <Button size="xs" variant="light" color="red" mt="xs" onClick={onFinish} loading={finishing}>
-              Try again
-            </Button>
-          </Alert>
-        )}
-
-        <Group justify="space-between" gap="sm" wrap="nowrap">
-          <Text size="xs" c="dimmed" visibleFrom="sm">
-            {review ? (
-              <>
-                <Kbd size="xs">Enter</Kbd> to continue
-              </>
-            ) : question.type === "fill_blank" || question.type === "label_image" || question.type === "locate_image" ? (
-              <>
-                <Kbd size="xs">Enter</Kbd> to check
-              </>
-            ) : (
-              <>
-                <Kbd size="xs">{question.type === "true_false" ? "T" : "1"}</Kbd>–<Kbd size="xs">{question.type === "true_false" ? "F" : "4"}</Kbd> to choose ·{" "}
-                <Kbd size="xs">Enter</Kbd> to check
-              </>
-            )}
-          </Text>
-          {review ? (
-            <Button
-              ref={nextRef}
-              size="md"
-              rightSection={isLast ? undefined : <IconArrowRight size={18} />}
-              onClick={next}
-              loading={finishing}
-              data-testid={isLast ? "finish-quiz" : "next-question"}
-              fullWidth={mobile}
-            >
-              {isLast ? "See results" : "Next question"}
-            </Button>
-          ) : (
-            <Button size="md" onClick={submit} disabled={!complete} loading={answer.isPending} data-testid="submit-answer" fullWidth={mobile}>
-              Check answer
-            </Button>
+          {answer.isError && (
+            <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert" title="Couldn't check your answer">
+              <Text size="sm">{answer.error.message}</Text>
+              <Button size="xs" variant="light" color="red" mt="xs" onClick={submit}>
+                Try again
+              </Button>
+            </Alert>
           )}
-        </Group>
-      </Stack>
+
+          {finishError && (
+            <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert" title="Couldn't finish the quiz">
+              <Text size="sm">{finishError}</Text>
+              <Button size="xs" variant="light" color="red" mt="xs" onClick={onFinish} loading={finishing}>
+                Try again
+              </Button>
+            </Alert>
+          )}
+
+          <Group justify="space-between" gap="sm" wrap="nowrap">
+            <Text size="xs" c="dimmed" visibleFrom="sm">
+              {review ? (
+                <>
+                  <Kbd size="xs">Enter</Kbd> to continue
+                </>
+              ) : question.type === "fill_blank" || question.type === "label_image" || question.type === "locate_image" ? (
+                <>
+                  <Kbd size="xs">Enter</Kbd> to check
+                </>
+              ) : (
+                <>
+                  <Kbd size="xs">{question.type === "true_false" ? "T" : "1"}</Kbd>–<Kbd size="xs">{question.type === "true_false" ? "F" : "4"}</Kbd> to choose ·{" "}
+                  <Kbd size="xs">Enter</Kbd> to check
+                </>
+              )}
+            </Text>
+            {review ? (
+              <Button
+                ref={nextRef}
+                size="md"
+                rightSection={isLast ? undefined : <IconArrowRight size={18} />}
+                onClick={next}
+                loading={finishing}
+                data-testid={isLast ? "finish-quiz" : "next-question"}
+                fullWidth={mobile}
+              >
+                {isLast ? "See results" : "Next question"}
+              </Button>
+            ) : (
+              <Button size="md" onClick={submit} disabled={!complete} loading={answer.isPending} data-testid="submit-answer" fullWidth={mobile}>
+                Check answer
+              </Button>
+            )}
+          </Group>
+        </Stack>
+      </Box>
+
+      {wide && !board.isError && (
+        <Box w={280} style={{ position: "sticky", top: 24, flexShrink: 0 }}>
+          <StudyBoardPanel roomId={roomId} quizId={quiz.id} myAttempt={myAttempt} />
+        </Box>
+      )}
 
       <FinishConfirm
         opened={confirming}
@@ -220,7 +234,7 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
         onCancel={() => setConfirming(false)}
         onConfirm={onFinish}
       />
-    </Box>
+    </Group>
   );
 }
 

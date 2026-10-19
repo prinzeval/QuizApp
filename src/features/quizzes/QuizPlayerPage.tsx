@@ -18,6 +18,7 @@ import { Results } from "./Results.tsx";
 import { StartScreen } from "./StartScreen.tsx";
 import type { AttemptData } from "./playerParts.tsx";
 import { isReview } from "./quizUtils.ts";
+import { useSharePreference } from "./StudyBoard.tsx";
 import { usePageTitle } from "../../hooks/usePageTitle.ts";
 
 /** /rooms/:roomId/quizzes/:quizId — start screen, taking the quiz (?attempt=<id>) and results. */
@@ -33,6 +34,8 @@ export function QuizPlayerPage() {
   const queryClient = useQueryClient();
   const startAttempt = useStartAttempt(roomId, quizId);
   const [starting, setStarting] = useState<QuizMode | null>(null);
+  // Whether new attempts share their score with the room (remembered per browser).
+  const [shareScore, setShareScore] = useSharePreference();
 
   const status = quiz.data?.quiz.status;
 
@@ -46,7 +49,7 @@ export function QuizPlayerPage() {
   const start = (mode: QuizMode) => {
     if (starting) return;
     setStarting(mode);
-    startAttempt.mutate(mode, {
+    startAttempt.mutate({ mode, shareScore }, {
       onSuccess: ({ attempt }) => {
         // Seed the new attempt so the first question shows instantly.
         const questions = quiz.data?.questions ?? [];
@@ -117,6 +120,8 @@ export function QuizPlayerPage() {
           attempts={quiz.data.attempts}
           starting={starting}
           startError={startAttempt.isError ? startAttempt.error.message : null}
+          shareScore={shareScore}
+          onShareScoreChange={setShareScore}
           onStart={start}
           onOpenAttempt={openAttempt}
         />
@@ -266,14 +271,15 @@ function AttemptView({ roomId, quiz, questions, attemptId, starting, onStart, on
   if (data.attempt.completedAt) {
     return (
       <Box maw={760}>
-        <Results roomId={roomId} attempt={data.attempt} reviews={data.questions.filter(isReview)} starting={starting} onStart={onStart} />
+        <Results roomId={roomId} quizId={quiz.id} attempt={data.attempt} reviews={data.questions.filter(isReview)} starting={starting} onStart={onStart} />
       </Box>
     );
   }
 
   const Runner = data.attempt.mode === "exam" ? ExamRunner : PracticeRunner;
+  // Both runners leave room beside the question for the "Studying together" board on wide screens.
   return (
-    <Box maw={data.attempt.mode === "exam" ? 1040 : 720}>
+    <Box maw={1040}>
       <Runner roomId={roomId} quiz={quiz} questions={questions} data={data} finishing={complete.isPending} finishError={finishError} onFinish={finish} />
     </Box>
   );

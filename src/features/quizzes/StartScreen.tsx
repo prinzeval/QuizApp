@@ -1,8 +1,9 @@
-import { Alert, Badge, Box, Button, Card, Group, Loader, Paper, SimpleGrid, Stack, Text, ThemeIcon, Title, UnstyledButton } from "@mantine/core";
+import { Alert, Badge, Box, Button, Card, Group, Loader, Paper, SimpleGrid, Stack, Switch, Text, ThemeIcon, Title, UnstyledButton } from "@mantine/core";
 import { IconAlertCircle, IconBulb, IconChevronRight, IconClipboardCheck, IconHistory, IconPlayerPlay } from "@tabler/icons-react";
 import type { QuizAttempt, QuizMode, QuizQuestion, QuizSummary } from "../../lib/learningApi.ts";
 import { plural, timeAgo } from "../../lib/format.ts";
 import { DIFFICULTY_COLOR, DIFFICULTY_LABEL, MODE_LABEL, TYPE_LABEL, attemptPercent, scoreColor, uniqueTopics } from "./quizUtils.ts";
+import { StartBoard } from "./StudyBoard.tsx";
 import classes from "../../components/InteractiveCard.module.css";
 
 interface StartScreenProps {
@@ -11,6 +12,9 @@ interface StartScreenProps {
   attempts: QuizAttempt[];
   starting: QuizMode | null;
   startError: string | null;
+  /** Share the next attempt's score with the room (progress is shared either way). */
+  shareScore: boolean;
+  onShareScoreChange: (value: boolean) => void;
   onStart: (mode: QuizMode) => void;
   onOpenAttempt: (attemptId: string) => void;
 }
@@ -32,7 +36,7 @@ const MODES: { mode: QuizMode; icon: typeof IconBulb; title: string; body: strin
   },
 ];
 
-export function StartScreen({ quiz, questions, attempts, starting, startError, onStart, onOpenAttempt }: StartScreenProps) {
+export function StartScreen({ quiz, questions, attempts, starting, startError, shareScore, onShareScoreChange, onStart, onOpenAttempt }: StartScreenProps) {
   const topics = uniqueTopics(questions);
   const unfinished = attempts.find(a => !a.completedAt) ?? null;
   const finished = attempts.filter(a => a.completedAt);
@@ -131,7 +135,18 @@ export function StartScreen({ quiz, questions, attempts, starting, startError, o
             </Card>
           ))}
         </SimpleGrid>
+        <Switch
+          mt="md"
+          checked={shareScore}
+          onChange={event => onShareScoreChange(event.currentTarget.checked)}
+          label="Share my score with the room"
+          description="Others see your progress either way. You can change this while you take it."
+          data-testid="share-score-start"
+          styles={{ body: { alignItems: "flex-start" } }}
+        />
       </div>
+
+      <StartBoard roomId={quiz.roomId} quizId={quiz.id} />
 
       {finished.length > 0 && (
         <div>
