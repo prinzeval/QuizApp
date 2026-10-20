@@ -3,6 +3,7 @@ import { useIsMobile } from "../hooks/useIsMobile.ts";
 import { FormModal } from "../components/FormModal.tsx";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
+  ActionIcon,
   Alert,
   Badge,
   Button,
@@ -11,6 +12,7 @@ import {
   EmptyState,
   Group,
   Loader,
+  Menu,
   Modal,
   Stack,
   Tabs,
@@ -21,6 +23,7 @@ import {
 import {
   IconAlertCircle,
   IconCards,
+  IconDots,
   IconChartBar,
   IconChevronLeft,
   IconFileText,
@@ -151,20 +154,26 @@ export function RoomPage() {
 
   return (
     <>
-      <Button component={Link} to="/" variant="subtle" color="gray" c="dimmed" fw={500} px={8} ml={-8} mb="md" leftSection={<IconChevronLeft size={16} aria-hidden="true" />}>
+      <Button component={Link} to="/" variant="subtle" color="gray" c="dimmed" fw={500} px={8} ml={-8} mb={mobile ? "xs" : "md"} leftSection={<IconChevronLeft size={16} aria-hidden="true" />}>
         All rooms
       </Button>
 
-      <Group align="flex-start" gap="md" wrap="nowrap" mb="xl">
-        <RoomAvatar room={room} size={56} />
-        <Stack gap={4} flex={1} miw={0}>
-          <Title order={1} style={{ overflowWrap: "anywhere" }}>
+      <Group align="flex-start" gap={mobile ? "sm" : "md"} wrap="nowrap" mb={mobile ? "md" : "xl"}>
+        <RoomAvatar room={room} size={mobile ? 40 : 56} />
+        <Stack gap={mobile ? 2 : 4} flex={1} miw={0}>
+          {/* On phones the header stays short so the tabs (and your work) start near the top. */}
+          <Title order={1} fz={{ base: "1.375rem", sm: undefined }} lh={1.25} lineClamp={mobile ? 2 : undefined} title={room.name} style={{ overflowWrap: "anywhere" }}>
             {room.name}
           </Title>
-          {room.description && <Text c="dimmed">{room.description}</Text>}
-          <Group gap="sm" wrap="wrap">
+          {room.description && (
+            <Text c="dimmed" size={mobile ? "sm" : undefined} lineClamp={mobile ? 2 : undefined}>
+              {room.description}
+            </Text>
+          )}
+          <Group gap="sm" wrap="wrap" mt={mobile ? 4 : 0}>
             <Text size="sm" c="dimmed">
-              {plural(room.memberCount, "member")} · You're {isOwner ? "the owner" : "a member"}
+              {plural(room.memberCount, "member")}
+              {mobile ? "" : ` · You're ${isOwner ? "the owner" : "a member"}`}
             </Text>
             <PresenceStack present={present} />
             <CallButton roomId={room.id} roomName={room.name} />
@@ -180,17 +189,24 @@ export function RoomPage() {
             </Button>
           </Group>
         )}
+        {isOwner && (
+          <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+              <ActionIcon variant="subtle" color="gray" size={40} hiddenFrom="xs" aria-label="Room options" data-testid="room-menu">
+                <IconDots size={20} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => setEditing(true)}>
+                Edit room
+              </Menu.Item>
+              <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={() => setDeleting(true)}>
+                Delete room
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        )}
       </Group>
-      {isOwner && (
-        <Group gap="xs" hiddenFrom="xs" mt={-8} mb="lg">
-          <Button variant="default" leftSection={<IconPencil size={16} />} onClick={() => setEditing(true)}>
-            Edit
-          </Button>
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => setDeleting(true)}>
-            Delete
-          </Button>
-        </Group>
-      )}
 
       <Tabs
         value={tab}

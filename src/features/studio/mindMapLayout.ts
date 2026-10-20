@@ -2,6 +2,8 @@ import dagre from "@dagrejs/dagre";
 import type { MindMapNode } from "../../lib/learningApi.ts";
 
 export const NODE_WIDTH = 220;
+/** Narrower topic cards on phones, so the map needs less zooming out to fit. */
+export const PHONE_NODE_WIDTH = 168;
 const NODE_HEIGHT = 64;
 
 export type Positions = Record<string, { x: number; y: number }>;
@@ -29,19 +31,19 @@ export function hiddenBy(nodes: MindMapNode[], collapsed: Set<string>): Set<stri
 }
 
 /** A tidy left-to-right tree layout of the visible nodes (top-left positions). */
-export function layoutTree(nodes: MindMapNode[]): Positions {
+export function layoutTree(nodes: MindMapNode[], nodeWidth = NODE_WIDTH): Positions {
   const graph = new dagre.graphlib.Graph();
-  graph.setGraph({ rankdir: "LR", nodesep: 18, ranksep: 70, marginx: 20, marginy: 20 });
+  graph.setGraph({ rankdir: "LR", nodesep: 18, ranksep: nodeWidth < NODE_WIDTH ? 40 : 70, marginx: 20, marginy: 20 });
   graph.setDefaultEdgeLabel(() => ({}));
   const ids = new Set(nodes.map(node => node.id));
-  nodes.forEach(node => graph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
+  nodes.forEach(node => graph.setNode(node.id, { width: nodeWidth, height: NODE_HEIGHT }));
   nodes.forEach(node => node.parentId && ids.has(node.parentId) && graph.setEdge(node.parentId, node.id));
   dagre.layout(graph);
 
   return Object.fromEntries(
     nodes.map(node => {
       const { x, y } = graph.node(node.id);
-      return [node.id, { x: x - NODE_WIDTH / 2, y: y - NODE_HEIGHT / 2 }];
+      return [node.id, { x: x - nodeWidth / 2, y: y - NODE_HEIGHT / 2 }];
     }),
   );
 }

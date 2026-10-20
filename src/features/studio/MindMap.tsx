@@ -24,7 +24,7 @@ import type { Figure, MindMapLink, MindMapNode } from "../../lib/learningApi.ts"
 import { plural } from "../../lib/format.ts";
 import { viewerPath } from "../materials/paths.ts";
 import { FigureCrop } from "../figures/FigureCrop.tsx";
-import { NODE_WIDTH, descendantsOf, hiddenBy, layoutTree, savedLayout, type Positions } from "./mindMapLayout.ts";
+import { NODE_WIDTH, PHONE_NODE_WIDTH, descendantsOf, hiddenBy, layoutTree, savedLayout, type Positions } from "./mindMapLayout.ts";
 
 type TopicData = {
   topic: MindMapNode;
@@ -44,9 +44,10 @@ const pageOf = (location: string | null) => {
 /** One topic: a card with its name; a chevron folds its branch away. */
 const TopicCard = memo(function TopicCard({ data }: NodeProps<TopicNode>) {
   const { topic, isRoot, childCount, collapsed, selected, onToggle } = data;
+  const mobile = useIsMobile();
   return (
     <Box
-      w={NODE_WIDTH}
+      w={mobile ? PHONE_NODE_WIDTH : NODE_WIDTH}
       px="sm"
       py={8}
       bdrs="md"
@@ -68,7 +69,7 @@ const TopicCard = memo(function TopicCard({ data }: NodeProps<TopicNode>) {
           {topic.figureIds.length > 0 && <IconPhoto size={14} aria-label="Has pictures" color={isRoot ? "white" : "var(--mantine-color-teal-6)"} />}
           {childCount > 0 && (
             <ActionIcon
-              size="sm"
+              size={mobile ? 40 : "sm"}
               variant={isRoot ? "white" : "subtle"}
               color={isRoot ? "clay" : "gray"}
               radius="xl"
@@ -90,6 +91,13 @@ const TopicCard = memo(function TopicCard({ data }: NodeProps<TopicNode>) {
 });
 
 const nodeTypes = { topic: TopicCard };
+
+/** Main topics that have their own subtopics: folded at first on phones. */
+function branchesBelowRoot(topics: MindMapNode[]): string[] {
+  const root = topics.find(topic => topic.parentId === null);
+  const parents = new Set(topics.map(topic => topic.parentId).filter(Boolean));
+  return topics.filter(topic => topic.parentId === root?.id && parents.has(topic.id)).map(topic => topic.id);
+}
 
 interface MindMapProps {
   itemId: string;
@@ -117,13 +125,14 @@ function MindMapCanvas({ itemId, roomId, nodes: topics, links, figures }: MindMa
   const mobile = useIsMobile();
   const { fitView } = useReactFlow();
   const saved = useMemo(() => savedLayout.read(itemId), [itemId]);
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(saved?.collapsed ?? []));
+  // A phone can't show 20+ topics readably: start with the main branches folded (tap to open).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(saved?.collapsed ?? (mobile ? branchesBelowRoot(topics) : [])));
   const [moved, setMoved] = useState<Positions>(() => saved?.positions ?? {});
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const hidden = useMemo(() => hiddenBy(topics, collapsed), [topics, collapsed]);
   const visible = useMemo(() => topics.filter(topic => !hidden.has(topic.id)), [topics, hidden]);
-  const auto = useMemo(() => layoutTree(visible), [visible]);
+  const auto = useMemo(() => layoutTree(visible, mobile ? PHONE_NODE_WIDTH : NODE_WIDTH), [visible, mobile]);
   const childCounts = useMemo(() => {
     const counts = new Map<string, number>();
     topics.forEach(topic => topic.parentId && counts.set(topic.parentId, (counts.get(topic.parentId) ?? 0) + 1));
@@ -207,7 +216,7 @@ function MindMapCanvas({ itemId, roomId, nodes: topics, links, figures }: MindMa
         edgesFocusable={false}
         colorMode={scheme}
         fitView
-        fitViewOptions={{ padding: 0.15 }}
+        fitViewOptions={{ padding: 0.1, minZoom: mobile ? 0.75 : undefined }}
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}

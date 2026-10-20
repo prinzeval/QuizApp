@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ActionIcon, Group, Menu, Switch, Tooltip, type MantineSize } from "@mantine/core";
-import { useMediaDeviceSelect, useTrackToggle } from "@livekit/components-react";
+import { ActionIcon, Box, Group, Menu, Slider, Switch, Text, Tooltip, type MantineSize } from "@mantine/core";
+import { useMediaDeviceSelect, useRoomContext, useTrackToggle } from "@livekit/components-react";
 import { supportsAudioOutputSelection, Track } from "livekit-client";
 import {
   IconCheck,
@@ -17,6 +17,7 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 import { callSoundsEnabled, playCallSound, setCallSoundsEnabled } from "./callSounds.ts";
+import { applyCallVolume, saveCallVolume, savedCallVolume, volumeLabel, volumeRange } from "./callVolume.ts";
 import { reportDeviceError } from "./devices.ts";
 
 /** Screen sharing needs getDisplayMedia, which phones don't have. */
@@ -152,9 +153,47 @@ function DeviceSettings({ size }: { size: number }) {
           <DeviceSection key={section.kind} {...section} />
         ))}
         <Menu.Divider />
+        <VolumeControl />
+        <Menu.Divider />
         <SoundsToggle />
       </Menu.Dropdown>
     </Menu>
+  );
+}
+
+/** How loud everyone else is. Phones start at 160% because their loudspeaker plays calls quietly. */
+function VolumeControl() {
+  const room = useRoomContext();
+  const [volume, setVolume] = useState(savedCallVolume);
+  const range = volumeRange();
+  return (
+    <Box px="sm" py={6} data-testid="call-volume">
+      <Group justify="space-between" mb={4}>
+        <Text size="xs" fw={600} c="dimmed">
+          Call volume
+        </Text>
+        <Text size="xs" fw={600}>
+          {volumeLabel(volume)}
+        </Text>
+      </Group>
+      <Slider
+        min={range.min}
+        max={range.max}
+        step={0.1}
+        value={volume}
+        label={volumeLabel}
+        thumbLabel="Call volume"
+        marks={range.max > 1 ? [{ value: 1 }, { value: 2 }] : [{ value: 1 }]}
+        onChange={value => {
+          setVolume(value);
+          applyCallVolume(room, value);
+        }}
+        onChangeEnd={saveCallVolume}
+      />
+      <Text size="xs" c="dimmed" mt={6}>
+        {range.max > 1 ? "Quiet on your phone's speaker? Turn this up." : "Still quiet? Turn up your computer's volume too."}
+      </Text>
+    </Box>
   );
 }
 

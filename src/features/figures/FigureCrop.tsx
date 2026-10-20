@@ -11,6 +11,16 @@ import { Unavailable } from "./Unavailable.tsx";
 // pdf.js is big: load it only when a PDF figure is actually shown.
 const FigurePdfPage = lazy(() => import("./FigurePdfPage.tsx"));
 
+/** Share of the page added around a figure's box when cropping. */
+const CROP_MARGIN = 0.02;
+
+/** Grows a page-relative box by `margin` on every side, staying on the page. */
+const withMargin = ([x, y, w, h]: FigureBox, margin: number): FigureBox => {
+  const left = Math.max(0, x - margin);
+  const top = Math.max(0, y - margin);
+  return [left, top, Math.min(1, x + w + margin) - left, Math.min(1, y + h + margin) - top];
+};
+
 /** Printed labels are boxed tightly; cover a little extra so no letter peeks out. */
 const MASK_PAD = 0.004;
 
@@ -46,7 +56,8 @@ interface FigureCropProps {
 export function FigureCrop({ roomId, figure, masks = [], maxHeight, overlay, onPick, enlargeable, onEnlarge, label }: FigureCropProps) {
   const { ref: outerRef, width: available } = useElementSize();
   const frameRef = useRef<HTMLDivElement>(null);
-  const [x, y, w, h] = figure.box;
+  // A little room around the figure so spots and labels at its edge aren't cut in half.
+  const [x, y, w, h] = withMargin(figure.box, CROP_MARGIN);
   // Crop shape = box shape on the page: (w · pageWidth) / (h · pageHeight).
   const ratio = (w * figure.aspect) / h;
   const width = Math.max(0, Math.min(available, maxHeight ? maxHeight * ratio : Infinity));

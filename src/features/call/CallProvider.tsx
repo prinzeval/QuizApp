@@ -9,6 +9,14 @@ import { useSocket } from "../../realtime/RealtimeProvider.tsx";
 import { CallContext, type ActiveCall, type CallContextValue, type CallView, type JoinChoices } from "./callContext.ts";
 import { setDevice } from "./devices.ts";
 import { playCallSound } from "./callSounds.ts";
+import { applyCallVolume, createBoostedAudio, isPhoneLike, savedCallVolume } from "./callVolume.ts";
+
+/** The audio context we handed each call's Room (phones only): ours to close when the call ends. */
+const callAudio = new WeakMap<Room, AudioContext>();
+const releaseCallAudio = (room: Room) => {
+  void callAudio.get(room)?.close().catch(() => undefined);
+  callAudio.delete(room);
+};
 
 // LiveKit (and the call UI) load only when someone joins a call, not with every page.
 const loadLiveKit = () => import("livekit-client");
@@ -17,7 +25,9 @@ const CallLayer = lazy(() => import("./CallLayer.tsx").then(module => ({ default
 type LiveKit = Awaited<ReturnType<typeof loadLiveKit>>;
 
 /** Meet/Zoom-style quality: simulcast layers, only send what someone watches, only receive what's on screen. */
-const roomOptions = ({ VideoPresets }: LiveKit) => ({
+const roomOptions = ({ VideoPresets }: LiveKit, audioContext: AudioContext | null) => ({
+  // Phones: play call audio through Web Audio + a limiter so it can be boosted (quiet loudspeakers).
+  webAudioMix: audioContext ? { audioContext } : false,
   adaptiveStream: true,
   dynacast: true,
   publishDefaults: { simulcast: true },
@@ -79,6 +89,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     clearSession();
     current.room.removeAllListeners();
     await current.room.disconnect().catch(() => undefined);
+    releaseCallAudio(current.room);
     emitChanged(current.call.roomId);
     // LiveKit's participant list can lag a moment behind a leave; ask once more.
     window.setTimeout(() => emitChanged(current.call.roomId), 2000);
@@ -91,11 +102,14 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const [{ token, url }, livekit] = await Promise.all([callApi.token(call.roomId), loadLiveKit()]);
       await leave({ quiet: true });
 
-      const room = new livekit.Room(roomOptions(livekit));
+      const audioContext = isPhoneLike() ? createBoostedAudio() : null;
+      const room = new livekit.Room(roomOptions(livekit, audioContext));
+      if (audioContext) callAudio.set(room, audioContext);
       try {
         await room.connect(url, token);
       } catch {
         await room.disconnect().catch(() => undefined);
+        releaseCallAudio(room);
         throw new ApiError("Couldn't connect to the call. Check your connection and try again.", 0);
       }
 
@@ -111,6 +125,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       if (!stillIn()) return;
       // Started from a click, so the browser should allow audio; if not, the dock offers a button.
       await room.startAudio().catch(() => undefined);
+      applyCallVolume(room, savedCallVolume());
       playCallSound("join");
       emitChanged(call.roomId);
       setAnnouncement(`You joined the call in ${call.roomName}.`);
@@ -144,6 +159,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
           .on(RoomEvent.LocalTrackUnpublished, changedSoon)
           .on(RoomEvent.TrackMuted, (publication: TrackPublication, participant: Participant) => muted(publication, participant, false))
           .on(RoomEvent.TrackUnmuted, (publication: TrackPublication, participant: Participant) => muted(publication, participant, true))
+          // New voices (and anyone already here) get the chosen call volume.
+          .on(RoomEvent.TrackSubscribed, () => applyCallVolume(room, savedCallVolume()))
           .on(RoomEvent.ParticipantConnected, participant => {
             playCallSound("peerJoin");
             setAnnouncement(`${label(participant)} joined the call.`);
@@ -165,6 +182,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
           .on(RoomEvent.Disconnected, reason => {
             window.clearTimeout(timer);
             room.removeAllListeners();
+            releaseCallAudio(room);
             // Already cleared: we left on purpose (or switched calls).
             if (sessionRef.current?.room !== room) return;
             clearSession();
@@ -212,7 +230,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const current = sessionRef.current;
       sessionRef.current = null;
       current?.room.removeAllListeners();
-      void current?.room.disconnect();
+      void current?.room.disconnect().then(() => releaseCallAudio(current.room));
     },
     [],
   );

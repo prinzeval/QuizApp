@@ -88,6 +88,14 @@
   color: #fff;
 }
 
+/* Touch screens: spots big enough to drop a label on with a thumb. */
+@media (pointer: coarse) {
+  .zone {
+    min-width: 36px;
+    min-height: 30px;
+  }
+}
+
 .zoneText {
   padding: 0 4px;
   white-space: nowrap;
