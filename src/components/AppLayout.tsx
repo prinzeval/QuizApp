@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ActionIcon,
   AppShell,
+  Badge,
   Burger,
   Container,
   Group,
@@ -38,6 +39,10 @@ import { RoomAvatar } from "./RoomAvatar.tsx";
 import { UserAvatar } from "./UserAvatar.tsx";
 import { CallProvider } from "../features/call/CallProvider.tsx";
 import { CallSpacer } from "../features/call/CallSpacer.tsx";
+import { unreadOf } from "../lib/chatApi.ts";
+import { formatUnread } from "../features/chat/chatUtils.ts";
+import { useChatShowing } from "../features/chat/chatStore.ts";
+import type { Room } from "../lib/api.ts";
 
 /**
  * Shell for every logged-in page: sidebar (a drawer below `sm`) + page content.
@@ -152,17 +157,7 @@ function Sidebar() {
           </Text>
         )}
         {rooms.data?.map(room => (
-          <NavLink
-            key={room.id}
-            component={Link}
-            to={`/rooms/${room.id}`}
-            data-testid="nav-room"
-            title={room.name}
-            label={room.name}
-            leftSection={<RoomAvatar room={room} size={24} />}
-            active={pathname === `/rooms/${room.id}`}
-            styles={{ label: ONE_LINE, body: { minWidth: 0 } }}
-          />
+          <RoomLink key={room.id} room={room} active={pathname === `/rooms/${room.id}`} />
         ))}
       </AppShell.Section>
 
@@ -170,6 +165,32 @@ function Sidebar() {
         <UserMenu />
       </AppShell.Section>
     </>
+  );
+}
+
+/** A room in the sidebar, with its unread chat count (hidden while you're reading that chat). */
+function RoomLink({ room, active }: { room: Room; active: boolean }) {
+  const reading = useChatShowing(room.id);
+  const unread = reading ? 0 : unreadOf(room);
+  return (
+    <NavLink
+      component={Link}
+      to={`/rooms/${room.id}`}
+      data-testid="nav-room"
+      title={room.name}
+      label={room.name}
+      aria-label={unread > 0 ? `${room.name}, ${unread} unread` : undefined}
+      leftSection={<RoomAvatar room={room} size={24} />}
+      rightSection={
+        unread > 0 ? (
+          <Badge size="xs" variant="filled" color="red" circle={unread < 10} data-testid="nav-room-unread" aria-hidden="true">
+            {formatUnread(unread)}
+          </Badge>
+        ) : null
+      }
+      active={active}
+      styles={{ label: ONE_LINE, body: { minWidth: 0 } }}
+    />
   );
 }
 

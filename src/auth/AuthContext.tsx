@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, onUnauthorized, tokenStore, type AuthResponse, type User } from "../lib/api.ts";
+import { setErrorReportingUser } from "../lib/sentry.ts";
 
 type Status = "loading" | "authenticated" | "anonymous";
 
@@ -9,6 +10,10 @@ interface AuthContextValue {
   user: User | null;
   signup: (input: { name: string; email: string; password: string }) => Promise<void>;
   login: (input: { email: string; password: string }) => Promise<void>;
+  /** Sign in with a Google Identity Services credential. `created` is true for a brand-new account. */
+  loginWithGoogle: (credential: string) => Promise<{ created: boolean }>;
+  /** Set a new password from an emailed reset link; signs you in. */
+  resetPassword: (input: { token: string; password: string }) => Promise<void>;
   logout: () => void;
   /** Replace the cached user after a profile change. */
   updateUser: (user: User) => void;
@@ -56,11 +61,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => onUnauthorized(null);
   }, [queryClient]);
 
-  const accept = useCallback(({ user, token }: AuthResponse) => {
-    tokenStore.set(token);
-    setUser(user);
-    setStatus("authenticated");
-  }, []);
+  // Tag error reports with the account id (never the email) so they can be traced to a user.
+  useEffect(() => {
+    setErrorReportingUser(user ? { id: user.id } : null);
+  }, [user]);
+
+  const accept = useCallback(
+    ({ user: next, token }: AuthResponse) => {
+      // A reset link opened while someone else is signed in on this browser: drop their cached data.
+      if (user && user.id !== next.id) queryClient.clear();
+      tokenStore.set(token);
+      setUser(next);
+      setStatus("authenticated");
+    },
+    [user, queryClient],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -68,6 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       signup: async input => accept(await api.signup(input)),
       login: async input => accept(await api.login(input)),
+      loginWithGoogle: async credential => {
+        const { created, ...session } = await api.google(credential);
+        accept(session);
+        return { created };
+      },
+      resetPassword: async input => accept(await api.resetPassword(input)),
       updateUser: setUser,
       replaceToken: token => tokenStore.set(token),
       logout: () => {

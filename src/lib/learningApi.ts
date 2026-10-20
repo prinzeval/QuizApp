@@ -180,6 +180,10 @@ export interface QuizSummary {
   myBestScore: number | null;
   /** Members partway through this quiz right now (active in the last 10 minutes), you included. */
   takingNow: { userId: string; name: string; avatarUrl: string | null }[];
+  /** Exam mode is timed when set (minutes, 1-180); practice is never timed. */
+  timeLimitMinutes: number | null;
+  /** Only its creator sees it (e.g. a "My mistakes" quiz). */
+  isPrivate: boolean;
 }
 
 /** A question as served for taking a quiz: no answers. */
@@ -203,6 +207,10 @@ export interface QuizAttempt {
   totalCount: number | null;
   /** Whether the room sees this attempt's score (progress is always shown). */
   shareScore: boolean;
+  /** A timed exam must be finished by then; answers after it are refused (409). Null when untimed. */
+  deadlineAt: string | null;
+  /** The server finished it when time ran out. */
+  autoSubmitted: boolean;
 }
 
 /**
@@ -248,6 +256,8 @@ export interface QuestionReview extends Omit<QuizQuestion, "figure" | "topic"> {
   response: string | null;
   isCorrect: boolean | null;
   source: QuestionSource | null;
+  /** How long the question was on screen (all visits added up); null when not recorded. */
+  timeSpentMs: number | null;
 }
 
 /** Unrevealed progress on a question in an unfinished exam. */
@@ -264,6 +274,14 @@ export interface NewQuizInput {
   difficulty: Difficulty;
   questionTypes: RequestableType[];
   focus?: string;
+  /** Minutes for exam mode (1-180), or null/absent for no limit. */
+  timeLimitMinutes?: number | null;
+}
+
+/** Questions I last answered wrong in a room, for a "review my mistakes" quiz. */
+export interface MistakesSummary {
+  count: number;
+  topics: { topic: string; count: number }[];
 }
 
 export interface Progress {
@@ -385,14 +403,18 @@ export const learningApi = {
     request<{ attempt: QuizAttempt }>(`${room(roomId)}/quizzes/${quizId}/attempts`, json("POST", { mode, shareScore })),
   attempt: (roomId: string, quizId: string, attemptId: string) =>
     request<{ attempt: QuizAttempt; questions: Array<QuestionReview | QuestionPending> }>(`${room(roomId)}/quizzes/${quizId}/attempts/${attemptId}`),
-  answer: (roomId: string, quizId: string, attemptId: string, questionId: string, response: string) =>
+  answer: (roomId: string, quizId: string, attemptId: string, questionId: string, response: string, timeSpentMs?: number) =>
     request<{ questionId: string; recorded: true; review?: QuestionReview }>(
       `${room(roomId)}/quizzes/${quizId}/attempts/${attemptId}/answers/${questionId}`,
-      json("PUT", { response }),
+      json("PUT", { response, timeSpentMs }),
     ),
   completeAttempt: (roomId: string, quizId: string, attemptId: string) =>
     request<{ attempt: QuizAttempt; questions: QuestionReview[] }>(`${room(roomId)}/quizzes/${quizId}/attempts/${attemptId}/complete`, json("POST")),
   quizBoard: (roomId: string, quizId: string) => request<{ board: BoardEntry[] }>(`${room(roomId)}/quizzes/${quizId}/board`),
+  quizMistakes: (roomId: string) => request<MistakesSummary>(`${room(roomId)}/quizzes/mistakes`),
+  /** An instant private quiz from my mistakes (all, or one topic; up to 30). */
+  createMistakesQuiz: (roomId: string, input: { count?: number; topic?: string }) =>
+    request<{ quiz: QuizSummary }>(`${room(roomId)}/quizzes/mistakes`, json("POST", input)),
   setAttemptSharing: (roomId: string, quizId: string, attemptId: string, shareScore: boolean) =>
     request<{ attempt: QuizAttempt }>(`${room(roomId)}/quizzes/${quizId}/attempts/${attemptId}/sharing`, json("PUT", { shareScore })),
 

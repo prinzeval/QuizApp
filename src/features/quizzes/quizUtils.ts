@@ -6,6 +6,12 @@ export const DEFAULT_TYPES: RequestableType[] = ["multiple_choice", "true_false"
 export const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 export const COUNT_LIMITS = { min: 3, max: 30 } as const;
 
+/** The "how many questions" choice for a mistakes quiz: 3 up to 30 (or all of them, when there are 3 or fewer). */
+export function mistakesCountRange(available: number): { min: number; max: number; adjustable: boolean } {
+  const max = Math.min(COUNT_LIMITS.max, Math.max(0, available));
+  return { min: COUNT_LIMITS.min, max: Math.max(max, COUNT_LIMITS.min), adjustable: max > COUNT_LIMITS.min };
+}
+
 export const TYPE_LABEL: Record<QuestionType | RequestableType, string> = {
   multiple_choice: "Multiple choice",
   true_false: "True / false",

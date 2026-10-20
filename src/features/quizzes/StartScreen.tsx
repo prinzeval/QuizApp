@@ -1,9 +1,10 @@
 import { Alert, Badge, Box, Button, Card, Group, Loader, Paper, SimpleGrid, Stack, Switch, Text, ThemeIcon, Title, UnstyledButton } from "@mantine/core";
-import { IconAlertCircle, IconBulb, IconChevronRight, IconClipboardCheck, IconHistory, IconPlayerPlay } from "@tabler/icons-react";
+import { IconAlertCircle, IconBulb, IconChevronRight, IconClipboardCheck, IconClock, IconHistory, IconLock, IconPlayerPlay } from "@tabler/icons-react";
 import type { QuizAttempt, QuizMode, QuizQuestion, QuizSummary } from "../../lib/learningApi.ts";
 import { plural, timeAgo } from "../../lib/format.ts";
 import { DIFFICULTY_COLOR, DIFFICULTY_LABEL, MODE_LABEL, TYPE_LABEL, attemptPercent, scoreColor, uniqueTopics } from "./quizUtils.ts";
 import { StartBoard } from "./StudyBoard.tsx";
+import { timeLimitLabel } from "./quizTime.ts";
 import classes from "../../components/InteractiveCard.module.css";
 
 interface StartScreenProps {
@@ -51,6 +52,16 @@ export function StartScreen({ quiz, questions, attempts, starting, startError, s
           <Badge variant="light" color="gray">
             {plural(questions.length, "question")}
           </Badge>
+          {quiz.timeLimitMinutes ? (
+            <Badge variant="light" color="grape" leftSection={<IconClock size={14} aria-hidden="true" />} tt="none" data-testid="start-timed">
+              {timeLimitLabel(quiz.timeLimitMinutes)}
+            </Badge>
+          ) : null}
+          {quiz.isPrivate && (
+            <Badge variant="default" leftSection={<IconLock size={14} aria-hidden="true" />} tt="none">
+              Only you
+            </Badge>
+          )}
         </Group>
         <Title order={1} style={{ overflowWrap: "anywhere" }}>
           {quiz.title}
@@ -85,6 +96,8 @@ export function StartScreen({ quiz, questions, attempts, starting, startError, s
               <Text fw={600}>You have an unfinished {MODE_LABEL[unfinished.mode].toLowerCase()}</Text>
               <Text size="sm" c="dimmed">
                 Started {timeAgo(unfinished.startedAt)}. Your answers are saved.
+                {unfinished.deadlineAt &&
+                  ` Time runs out at ${new Date(unfinished.deadlineAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`}
               </Text>
             </div>
             <Button leftSection={<IconPlayerPlay size={16} />} onClick={() => onOpenAttempt(unfinished.id)} data-testid="resume-attempt">
@@ -104,7 +117,9 @@ export function StartScreen({ quiz, questions, attempts, starting, startError, s
           </Alert>
         )}
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-          {MODES.map(({ mode, icon: Icon, title, body, detail }) => (
+          {MODES.map(({ mode, icon: Icon, title, body, detail }) => {
+            const limit = mode === "exam" ? quiz.timeLimitMinutes : null;
+            return (
             <Card
               key={mode}
               component="button"
@@ -114,7 +129,7 @@ export function StartScreen({ quiz, questions, attempts, starting, startError, s
               shadow="xs"
               data-testid={`mode-${mode}`}
               aria-busy={starting === mode}
-              aria-label={`Start in ${title.toLowerCase()} mode: ${body}`}
+              aria-label={`Start in ${title.toLowerCase()} mode: ${body}${limit ? ` ${limit} minute time limit.` : ""}`}
               style={{ textAlign: "left" }}
             >
               <Group justify="space-between" align="flex-start" wrap="nowrap">
@@ -132,8 +147,17 @@ export function StartScreen({ quiz, questions, attempts, starting, startError, s
               <Text size="sm" c="dimmed" mt={4}>
                 {detail}
               </Text>
+              {limit ? (
+                <Group gap={6} mt="sm" wrap="nowrap" c="grape.8">
+                  <IconClock size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+                  <Text size="sm" fw={600} c="inherit">
+                    {limit} minute limit · submits itself when time runs out
+                  </Text>
+                </Group>
+              ) : null}
             </Card>
-          ))}
+            );
+          })}
         </SimpleGrid>
         <Switch
           mt="md"

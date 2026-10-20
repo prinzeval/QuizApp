@@ -5,9 +5,11 @@ import {
   Chip,
   Group,
   Input,
+  NumberInput,
   SegmentedControl,
   Slider,
   Stack,
+  Switch,
   Text,
   TextInput,
 } from "@mantine/core";
@@ -17,6 +19,7 @@ import { ApiError, type FieldErrors } from "../../lib/api.ts";
 import type { Difficulty, QuizSummary, RequestableType } from "../../lib/learningApi.ts";
 import { MaterialPicker } from "../materials/MaterialPicker.tsx";
 import { COUNT_LIMITS, DEFAULT_TYPES, DIFFICULTIES, DIFFICULTY_LABEL, QUESTION_TYPES, TYPE_LABEL } from "./quizUtils.ts";
+import { TIME_LIMIT } from "./quizTime.ts";
 
 interface NewQuizFormProps {
   roomId: string;
@@ -37,6 +40,8 @@ export function NewQuizForm({ roomId, initialFocus = "", onCancel, onCreated, on
   const [types, setTypes] = useState<RequestableType[]>([...DEFAULT_TYPES]);
   const [focus, setFocus] = useState(initialFocus.slice(0, 200));
   const [title, setTitle] = useState("");
+  const [timed, setTimed] = useState(false);
+  const [minutes, setMinutes] = useState<number | string>(TIME_LIMIT.default);
   const [errors, setErrors] = useState<FieldErrors>({});
 
   const ready = (materials.data?.materials ?? []).filter(m => m.status === "ready");
@@ -47,6 +52,9 @@ export function NewQuizForm({ roomId, initialFocus = "", onCancel, onCreated, on
     const next: FieldErrors = {};
     if (types.length === 0) next.questionTypes = "Pick at least one question type";
     if (scope === "pick" && picked.length === 0) next.materialIds = "Choose at least one material, or use all of them";
+    const limit = typeof minutes === "number" ? minutes : Number(minutes);
+    if (timed && (!Number.isInteger(limit) || limit < TIME_LIMIT.min || limit > TIME_LIMIT.max))
+      next.timeLimitMinutes = `Pick between ${TIME_LIMIT.min} and ${TIME_LIMIT.max} minutes`;
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -58,6 +66,7 @@ export function NewQuizForm({ roomId, initialFocus = "", onCancel, onCreated, on
         difficulty,
         questionTypes: types,
         focus: focus.trim() || undefined,
+        timeLimitMinutes: timed ? limit : null,
       });
       onCreated(quiz);
     } catch (error) {
@@ -152,6 +161,35 @@ export function NewQuizForm({ roomId, initialFocus = "", onCancel, onCreated, on
             </Text>
           )}
         </Input.Wrapper>
+
+        <Stack gap={8}>
+          <Switch
+            checked={timed}
+            onChange={event => setTimed(event.currentTarget.checked)}
+            label="Time limit"
+            description="Applies to Exam mode: it submits itself when time runs out. Practice is never timed."
+            data-testid="quiz-timed"
+            styles={{ body: { alignItems: "flex-start" } }}
+          />
+          {timed && (
+            <NumberInput
+              label="Minutes"
+              value={minutes}
+              onChange={setMinutes}
+              min={TIME_LIMIT.min}
+              max={TIME_LIMIT.max}
+              step={TIME_LIMIT.step}
+              allowDecimal={false}
+              allowNegative={false}
+              clampBehavior="blur"
+              suffix=" min"
+              w={{ base: "100%", xs: 200 }}
+              error={errors.timeLimitMinutes}
+              inputMode="numeric"
+              data-testid="quiz-time-limit"
+            />
+          )}
+        </Stack>
 
         <TextInput
           label="Focus on"

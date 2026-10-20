@@ -1,0 +1,115 @@
+/* The study card: an index card with a thin terracotta rule along the top. */
+.face {
+  position: relative;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-lg);
+  background: var(--mantine-color-body);
+  box-shadow:
+    0 1px 2px rgb(31 30 29 / 4%),
+    0 8px 24px -12px rgb(31 30 29 / 12%);
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: var(--mantine-color-clay-5);
+    opacity: 0.85;
+  }
+}
+
+/* A second card peeking out underneath: there's more in the pile. */
+.pile {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: -7px;
+    height: 16px;
+    z-index: -1;
+    border: 1px solid var(--mantine-color-default-border);
+    border-top: 0;
+    border-radius: 0 0 var(--mantine-radius-lg) var(--mantine-radius-lg);
+    background: var(--mantine-color-body);
+  }
+}
+
+.reveal {
+  animation: reveal 180ms ease-out;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Each new card slides in from the right a touch. */
+.enter {
+  animation: enter 200ms ease-out;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .enter {
+    animation: none;
+  }
+}
+
+/* Thumb-reachable buttons: pinned to the bottom of the screen on phones. */
+.dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: var(--mantine-spacing-sm) 0 calc(var(--mantine-spacing-sm) + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--app-canvas) 22%);
+}
+
+.rating {
+  height: auto;
+  min-height: 60px;
+  padding-block: 6px;
+}
+
+.ratingInner {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.2;
+}
+
+.today {
+  background: linear-gradient(135deg, var(--mantine-color-clay-0), var(--mantine-color-body) 70%);
+
+  @mixin dark {
+    background: linear-gradient(135deg, rgb(217 119 87 / 12%), var(--mantine-color-body) 70%);
+  }
+}
+
+.row {
+  transition: background-color 120ms ease;
+
+  @mixin hover {
+    background: var(--mantine-color-default-hover);
+  }
+}

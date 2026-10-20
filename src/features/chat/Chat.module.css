@@ -1,0 +1,84 @@
+.scroller {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.row {
+  position: relative;
+  border-radius: var(--mantine-radius-sm);
+  padding: 2px 6px;
+  margin: 0 -6px;
+  transition: background-color 120ms ease;
+}
+
+.row:hover,
+.row:focus-within {
+  background: var(--mantine-color-default-hover);
+}
+
+.actions {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.row:hover .actions,
+.row:focus-within .actions,
+.actions[data-expanded] {
+  opacity: 1;
+}
+
+/* Touch screens have no hover: keep the menu reachable, just quiet. */
+@media (hover: none) {
+  .actions {
+    opacity: 0.6;
+  }
+}
+
+.body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.quote {
+  display: block;
+  width: 100%;
+  border-left: 3px solid var(--mantine-color-clay-3);
+  padding: 2px 0 2px 8px;
+  margin: 2px 0 4px;
+  text-align: left;
+  border-radius: 0 var(--mantine-radius-xs) var(--mantine-radius-xs) 0;
+}
+
+.quote:hover {
+  background: var(--mantine-color-default-hover);
+}
+
+.highlight {
+  animation: flash 1.8s ease-out;
+}
+
+@keyframes flash {
+  from {
+    background: var(--mantine-primary-color-light);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.pill {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .highlight {
+    animation: none;
+    background: var(--mantine-primary-color-light);
+  }
+}

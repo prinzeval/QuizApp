@@ -1,14 +1,15 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Alert, Anchor, Button, Stack, TextInput } from "@mantine/core";
+import { Alert, Anchor, Button, Stack, Text, TextInput } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useAuth } from "../auth/AuthContext.tsx";
+import { isValidEmail, redirectTarget } from "../auth/authHelpers.ts";
 import { ApiError, type FieldErrors } from "../lib/api.ts";
+import { notify } from "../notify.ts";
 import { AuthLayout } from "../components/AuthLayout.tsx";
+import { GoogleSignIn } from "../components/GoogleButton.tsx";
 import { PasswordField, StrengthMeter } from "../components/PasswordField.tsx";
 import { usePageTitle } from "../hooks/usePageTitle.ts";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SignupPage() {
   usePageTitle("Create an account");
@@ -16,7 +17,7 @@ export function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
   // e.g. an invite link that sent the user here to create an account first
-  const from = (location.state as { from?: string } | null)?.from ?? "/";
+  const from = redirectTarget(location.state);
 
   const [name, setName] = useState("");
   // Prefilled when login sent you here ("no account for this email").
@@ -31,7 +32,7 @@ export function SignupPage() {
     // Quick checks here for instant feedback; the server has the final say.
     const local: FieldErrors = {};
     if (!name.trim()) local.name = "Enter your name";
-    if (!EMAIL_RE.test(email.trim())) local.email = "Enter a valid email address";
+    if (!isValidEmail(email)) local.email = "Enter a valid email address";
     if (password.length < 8) local.password = "Password must be at least 8 characters";
     setErrors(local);
     setFormError("");
@@ -65,6 +66,14 @@ export function SignupPage() {
         </>
       }
     >
+      <GoogleSignIn
+        onStart={() => setFormError("")}
+        onSignedIn={created => {
+          notify(created ? "Welcome to SmartQuiz!" : "Welcome back! You already had an account, so we logged you in.");
+          navigate(from, { replace: true });
+        }}
+        onError={setFormError}
+      />
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
           {formError && (
@@ -107,6 +116,17 @@ export function SignupPage() {
           <Button type="submit" fullWidth loading={loading} mt="xs">
             Create account
           </Button>
+          <Text size="xs" c="dimmed" ta="center" data-testid="legal-consent">
+            By creating an account you agree to the{" "}
+            <Anchor component={Link} to="/terms" fz="inherit" inherit>
+              Terms
+            </Anchor>{" "}
+            and{" "}
+            <Anchor component={Link} to="/privacy" fz="inherit" inherit>
+              Privacy Policy
+            </Anchor>
+            .
+          </Text>
         </Stack>
       </form>
     </AuthLayout>

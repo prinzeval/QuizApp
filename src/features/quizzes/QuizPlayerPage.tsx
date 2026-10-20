@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Box, Button, Card, Center, EmptyState, Group, Loader, Stack, Text, ThemeIcon, Title, VisuallyHidden } from "@mantine/core";
-import { IconAlertTriangle, IconArrowLeft, IconRefresh, IconSparkles } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowLeft, IconClockStop, IconRefresh, IconSparkles } from "@tabler/icons-react";
 import { useAuth } from "../../auth/AuthContext.tsx";
 import { queryKeys } from "../../hooks/queryKeys.ts";
 import { useAttempt, useCompleteAttempt, useQuiz, useRetryQuiz, useStartAttempt } from "../../hooks/learning.ts";
@@ -231,11 +231,23 @@ function AttemptView({ roomId, quiz, questions, attemptId, starting, onStart, on
   const attempt = useAttempt(roomId, quiz.id, attemptId);
   const complete = useCompleteAttempt(roomId, quiz.id, attemptId);
   const queryClient = useQueryClient();
+  // The time limit ran out here: hand in, then say so on the results.
+  const [timedOut, setTimedOut] = useState(false);
 
   const finish = () => {
     if (complete.isPending) return;
     complete.mutate(undefined, {
       onSuccess: result => queryClient.setQueryData<AttemptData>(queryKeys.attempt(roomId, quiz.id, attemptId), result),
+    });
+  };
+
+  const finishTimeUp = () => {
+    setTimedOut(true);
+    if (complete.isPending) return;
+    complete.mutate(undefined, {
+      onSuccess: result => queryClient.setQueryData<AttemptData>(queryKeys.attempt(roomId, quiz.id, attemptId), result),
+      // The server may already have handed it in at the deadline: fetching it shows the result.
+      onError: () => void attempt.refetch(),
     });
   };
 
@@ -271,16 +283,64 @@ function AttemptView({ roomId, quiz, questions, attemptId, starting, onStart, on
   if (data.attempt.completedAt) {
     return (
       <Box maw={760}>
-        <Results roomId={roomId} quizId={quiz.id} attempt={data.attempt} reviews={data.questions.filter(isReview)} starting={starting} onStart={onStart} />
+        <Results
+          roomId={roomId}
+          quizId={quiz.id}
+          attempt={data.attempt}
+          reviews={data.questions.filter(isReview)}
+          starting={starting}
+          onStart={onStart}
+          timedOut={timedOut}
+        />
       </Box>
     );
   }
 
-  const Runner = data.attempt.mode === "exam" ? ExamRunner : PracticeRunner;
+  if (timedOut) {
+    const stuck = complete.isError && !attempt.isFetching;
+    return (
+      <Card padding="xl" maw={560} mx="auto" mt="xl" data-testid="time-up">
+        <Stack align="center" ta="center" gap="md" role="status" aria-live="polite">
+          <ThemeIcon size={56} radius="xl" variant="light" color="grape">
+            <IconClockStop size={28} stroke={1.6} />
+          </ThemeIcon>
+          <div>
+            <Title order={1} fz="1.5rem">
+              Time's up
+            </Title>
+            <Text c="dimmed" mt="xs">
+              {stuck ? complete.error?.message || "We couldn't hand in your exam." : "Handing in your answers…"}
+            </Text>
+          </div>
+          {stuck ? (
+            <Button onClick={finishTimeUp} leftSection={<IconRefresh size={16} />}>
+              Try again
+            </Button>
+          ) : (
+            <Loader type="dots" />
+          )}
+        </Stack>
+      </Card>
+    );
+  }
+
   // Both runners leave room beside the question for the "Studying together" board on wide screens.
   return (
     <Box maw={1040}>
-      <Runner roomId={roomId} quiz={quiz} questions={questions} data={data} finishing={complete.isPending} finishError={finishError} onFinish={finish} />
+      {data.attempt.mode === "exam" ? (
+        <ExamRunner
+          roomId={roomId}
+          quiz={quiz}
+          questions={questions}
+          data={data}
+          finishing={complete.isPending}
+          finishError={finishError}
+          onFinish={finish}
+          onTimeUp={finishTimeUp}
+        />
+      ) : (
+        <PracticeRunner roomId={roomId} quiz={quiz} questions={questions} data={data} finishing={complete.isPending} finishError={finishError} onFinish={finish} />
+      )}
     </Box>
   );
 }

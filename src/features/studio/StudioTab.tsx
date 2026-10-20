@@ -29,7 +29,8 @@ import { plural, timeAgo } from "../../lib/format.ts";
 import { notify } from "../../notify.ts";
 import { MaterialPicker } from "../materials/MaterialPicker.tsx";
 import { NewQuizForm } from "../quizzes/NewQuizForm.tsx";
-import { QUIZ_TOOL, STUDIO_TOOLS } from "./studioKinds.ts";
+import { MakeFlashcardsForm } from "../flashcards/MakeFlashcardsForm.tsx";
+import { FLASHCARDS_TOOL, QUIZ_TOOL, STUDIO_TOOLS } from "./studioKinds.ts";
 import classes from "./Studio.module.css";
 
 /**
@@ -43,6 +44,7 @@ export function StudioTab({ room }: { room: Room }) {
   const [, setSearchParams] = useSearchParams();
   const [making, setMaking] = useState<StudioKind | null>(null);
   const [quizzing, setQuizzing] = useState(false);
+  const [carding, setCarding] = useState(false);
   const [deleting, setDeleting] = useState<StudioItem | null>(null);
 
   const list = items.data?.items ?? [];
@@ -50,6 +52,7 @@ export function StudioTab({ room }: { room: Room }) {
   const goToMaterials = () => {
     setMaking(null);
     setQuizzing(false);
+    setCarding(false);
     setSearchParams({ tab: "materials" }, { replace: true });
   };
 
@@ -62,12 +65,13 @@ export function StudioTab({ room }: { room: Room }) {
         </Text>
       </div>
 
-      <SimpleGrid cols={{ base: 1, xs: 2, md: 3 }} spacing="sm" mb="xl">
+      <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }} spacing="sm" mb="xl">
         {(Object.keys(STUDIO_TOOLS) as StudioKind[]).map(kind => {
           const tool = STUDIO_TOOLS[kind];
           return <Tile key={kind} {...tool} testId={`studio-tile-${kind}`} onClick={() => setMaking(kind)} />;
         })}
         <Tile {...QUIZ_TOOL} testId="studio-tile-quiz" onClick={() => setQuizzing(true)} />
+        <Tile {...FLASHCARDS_TOOL} testId="studio-tile-flashcards" onClick={() => setCarding(true)} />
       </SimpleGrid>
 
       <Title order={3} size="h4" mb="sm">
@@ -130,6 +134,21 @@ export function StudioTab({ room }: { room: Room }) {
               setQuizzing(false);
               notify("Generating your quiz…", "info");
               setSearchParams({ tab: "quizzes" }, { replace: true });
+            }}
+            onGoToMaterials={goToMaterials}
+          />
+        )}
+      </FormModal>
+
+      <FormModal opened={carding} onClose={() => setCarding(false)} title="Make flashcards" size="lg">
+        {carding && (
+          <MakeFlashcardsForm
+            roomId={room.id}
+            onCancel={() => setCarding(false)}
+            onCreated={() => {
+              setCarding(false);
+              notify("Writing your flashcards…", "info");
+              setSearchParams({ tab: "flashcards" }, { replace: true });
             }}
             onGoToMaterials={goToMaterials}
           />

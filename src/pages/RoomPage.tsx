@@ -6,6 +6,7 @@ import {
   Alert,
   Badge,
   Button,
+  Card,
   Center,
   EmptyState,
   Group,
@@ -19,17 +20,19 @@ import {
 } from "@mantine/core";
 import {
   IconAlertCircle,
+  IconCards,
   IconChartBar,
   IconChevronLeft,
   IconFileText,
   IconListCheck,
   IconMessageChatbot,
+  IconMessages,
   IconPencil,
   IconSparkles,
   IconTrash,
   IconUsers,
 } from "@tabler/icons-react";
-import { useDeleteRoom, useRoom, useUpdateRoom } from "../hooks/rooms.ts";
+import { useDeleteRoom, useRoom, useRooms, useUpdateRoom } from "../hooks/rooms.ts";
 import { ApiError } from "../lib/api.ts";
 import { plural } from "../lib/format.ts";
 import { notify } from "../notify.ts";
@@ -45,11 +48,17 @@ import { PresenceStack } from "../features/members/PresenceStack.tsx";
 import { CallButton } from "../features/call/CallButton.tsx";
 import { useRoomLive } from "../realtime/useRoomLive.ts";
 import { usePageTitle } from "../hooks/usePageTitle.ts";
+import { ChatPanel } from "../features/chat/ChatPanel.tsx";
+import { formatUnread } from "../features/chat/chatUtils.ts";
+import { FlashcardsTab } from "../features/flashcards/FlashcardsTab.tsx";
+import { unreadOf } from "../lib/chatApi.ts";
 
 const TABS = [
   { id: "materials", label: "Materials", icon: IconFileText },
   { id: "studio", label: "Studio", icon: IconSparkles },
   { id: "quizzes", label: "Quizzes", icon: IconListCheck },
+  { id: "flashcards", label: "Flashcards", icon: IconCards },
+  { id: "chat", label: "Chat", icon: IconMessages },
   { id: "tutor", label: "AI Tutor", icon: IconMessageChatbot },
   { id: "progress", label: "Progress", icon: IconChartBar },
   { id: "members", label: "Members", icon: IconUsers },
@@ -64,6 +73,8 @@ export function RoomPage() {
   const tab: TabId = TABS.some(t => t.id === tabParam) ? (tabParam as TabId) : "materials";
 
   const query = useRoom(roomId);
+  // The room list is refreshed whenever a message arrives (user:rooms-changed), so it has the freshest unread count.
+  const listed = useRooms().data?.find(r => r.id === roomId);
   usePageTitle(query.data?.room.name);
   // Live updates + who's here; runs for the whole time the room page is open.
   const present = useRoomLive(roomId);
@@ -75,6 +86,34 @@ export function RoomPage() {
   useEffect(() => {
     tabList.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [tab, query.isSuccess]);
+  // Opening the chat: bring it up to fill the screen, so the message box is in view.
+  useEffect(() => {
+    if (tab !== "chat" || !query.isSuccess) return;
+    const align = (behavior: ScrollBehavior) => {
+      if (!tabList.current) return;
+      const top = tabList.current.getBoundingClientRect().top + window.scrollY - (mobile ? 56 : 0) - 8;
+      window.scrollTo({ top: Math.max(0, top), behavior });
+    };
+    align("smooth");
+    // The header can grow a moment later (who's here, the call button): line up again
+    // for a few seconds, unless you've started scrolling yourself.
+    const observer = new ResizeObserver(() => align("auto"));
+    observer.observe(document.body);
+    const stop = () => {
+      observer.disconnect();
+      clearTimeout(expire);
+    };
+    const expire = setTimeout(stop, 5000);
+    window.addEventListener("wheel", stop, { once: true, passive: true });
+    window.addEventListener("touchstart", stop, { once: true, passive: true });
+    window.addEventListener("keydown", stop, { once: true });
+    return () => {
+      stop();
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("keydown", stop);
+    };
+  }, [tab, query.isSuccess, mobile]);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -108,6 +147,7 @@ export function RoomPage() {
 
   const { room, members } = query.data;
   const isOwner = room.role === "owner";
+  const unread = tab === "chat" ? 0 : unreadOf(listed ?? room);
 
   return (
     <>
@@ -168,6 +208,10 @@ export function RoomPage() {
                   <Badge size="xs" variant="light" circle aria-label={`${room.memberCount}`}>
                     {room.memberCount}
                   </Badge>
+                ) : id === "chat" && unread > 0 ? (
+                  <Badge size="xs" variant="filled" color="red" circle={unread < 10} aria-label={`${unread} unread`} data-testid="chat-unread">
+                    {formatUnread(unread)}
+                  </Badge>
                 ) : null
               }
               px={mobile ? "sm" : "md"}
@@ -186,6 +230,14 @@ export function RoomPage() {
         </Tabs.Panel>
         <Tabs.Panel value="quizzes" pt="lg">
           <QuizzesTab room={room} />
+        </Tabs.Panel>
+        <Tabs.Panel value="flashcards" pt="lg">
+          <FlashcardsTab room={room} />
+        </Tabs.Panel>
+        <Tabs.Panel value="chat" pt="lg">
+          <Card padding={0} h={{ base: "calc(100dvh - 136px)", sm: "calc(100dvh - 104px)" }} mih={380} mah={900} style={{ overflow: "hidden" }}>
+            <ChatPanel roomId={room.id} roomName={room.name} isOwner={isOwner} />
+          </Card>
         </Tabs.Panel>
         <Tabs.Panel value="tutor" pt="lg">
           <TutorTab room={room} />

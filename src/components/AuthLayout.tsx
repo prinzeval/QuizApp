@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Box, Center, Group, Image, Stack, Text, Title } from "@mantine/core";
+import { Link } from "react-router-dom";
+import { Anchor, Box, Center, Group, Image, Stack, Text, Title } from "@mantine/core";
 import { Scribble } from "./Doodles.tsx";
 
 function Logo({ inverted = false }: { inverted?: boolean }) {
@@ -13,7 +14,7 @@ function Logo({ inverted = false }: { inverted?: boolean }) {
   );
 }
 
-export function AuthLayout({ title, subtitle, children, footer }: { title: string; subtitle: string; children: ReactNode; footer: ReactNode }) {
+export function AuthLayout({ title, subtitle, children, footer }: { title: string; subtitle: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
     <Group align="stretch" gap={0} wrap="nowrap" mih="100dvh" bg="var(--app-canvas)">
       <Box
@@ -48,9 +49,19 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
             </Text>
           </div>
           {children}
-          <Text size="sm" c="dimmed" ta="center">
-            {footer}
-          </Text>
+          {footer && (
+            <Text size="sm" c="dimmed" ta="center">
+              {footer}
+            </Text>
+          )}
+          <Group component="nav" aria-label="Legal" justify="center" gap="md">
+            <Anchor component={Link} to="/privacy" size="xs" c="dimmed">
+              Privacy
+            </Anchor>
+            <Anchor component={Link} to="/terms" size="xs" c="dimmed">
+              Terms
+            </Anchor>
+          </Group>
         </Stack>
       </Center>
     </Group>

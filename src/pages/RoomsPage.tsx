@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Badge, Button, Card, EmptyState, Group, SimpleGrid, Skeleton, Text, TextInput, Title } from "@mantine/core";
-import { IconPlus, IconSearch } from "@tabler/icons-react";
+import { IconMessageCircle, IconPlus, IconSearch } from "@tabler/icons-react";
 import { useAuth } from "../auth/AuthContext.tsx";
 import { useCreateRoom, useRooms } from "../hooks/rooms.ts";
 import { plural, timeAgo } from "../lib/format.ts";
@@ -13,6 +13,8 @@ import { RoomAvatar } from "../components/RoomAvatar.tsx";
 import type { Room } from "../lib/api.ts";
 import classes from "../components/InteractiveCard.module.css";
 import { usePageTitle } from "../hooks/usePageTitle.ts";
+import { unreadOf } from "../lib/chatApi.ts";
+import { formatUnread } from "../features/chat/chatUtils.ts";
 
 export function RoomsPage() {
   usePageTitle("Your study rooms");
@@ -145,16 +147,32 @@ function greeting(): string {
 }
 
 function RoomCard({ room }: { room: Room }) {
+  const unread = unreadOf(room);
   return (
     <li>
-      <Card component={Link} to={`/rooms/${room.id}`} data-testid="room-card" h="100%" shadow="xs" className={classes.card}>
+      <Card
+        component={Link}
+        to={unread > 0 ? `/rooms/${room.id}?tab=chat` : `/rooms/${room.id}`}
+        data-testid="room-card"
+        h="100%"
+        shadow="xs"
+        className={classes.card}
+        aria-label={unread > 0 ? `${room.name}, ${unread} unread ${unread === 1 ? "message" : "messages"}` : undefined}
+      >
         <Group justify="space-between" align="flex-start">
           <RoomAvatar room={room} size={44} />
-          {room.role === "owner" && (
-            <Badge variant="light" size="sm">
-              Owner
-            </Badge>
-          )}
+          <Group gap={6}>
+            {unread > 0 && (
+              <Badge variant="filled" color="red" size="sm" leftSection={<IconMessageCircle size={12} aria-hidden="true" />} data-testid="room-card-unread">
+                {formatUnread(unread)} new
+              </Badge>
+            )}
+            {room.role === "owner" && (
+              <Badge variant="light" size="sm">
+                Owner
+              </Badge>
+            )}
+          </Group>
         </Group>
         <Title order={2} size="h3" mt="md" lineClamp={1} data-testid="room-card-name">
           {room.name}

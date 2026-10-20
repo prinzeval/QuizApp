@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { correctText, keyToOption, percent, responseText, scoreMessage, splitBlank, topicBreakdown, uniqueTopics } from "./quizUtils.ts";
+import { correctText, keyToOption, mistakesCountRange, percent, responseText, scoreMessage, splitBlank, topicBreakdown, uniqueTopics } from "./quizUtils.ts";
 
 describe("splitBlank", () => {
   it("splits around the blank", () => {
@@ -66,5 +66,16 @@ describe("scores", () => {
   });
   it("lists unique topics in order", () => {
     expect(uniqueTopics([{ topic: "B" }, { topic: "A" }, { topic: "B" }])).toEqual(["B", "A"]);
+  });
+});
+
+describe("mistakesCountRange", () => {
+  it("offers 3 up to 30", () => {
+    expect(mistakesCountRange(12)).toEqual({ min: 3, max: 12, adjustable: true });
+    expect(mistakesCountRange(80)).toEqual({ min: 3, max: 30, adjustable: true });
+  });
+  it("isn't adjustable with 3 or fewer (all of them)", () => {
+    expect(mistakesCountRange(3).adjustable).toBe(false);
+    expect(mistakesCountRange(1).adjustable).toBe(false);
   });
 });

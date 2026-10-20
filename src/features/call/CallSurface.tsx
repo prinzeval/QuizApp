@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ActionIcon, Anchor, Avatar, Badge, Box, Button, Center, Group, Modal, Paper, ScrollArea, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { ActionIcon, Anchor, Avatar, Badge, Box, Button, Center, Drawer, Group, Indicator, Modal, Paper, ScrollArea, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core";
 import { useAudioPlayback, useConnectionState, useParticipants } from "@livekit/components-react";
 import { ConnectionState, type Participant } from "livekit-client";
-import { IconArrowsMaximize, IconArrowsMinimize, IconChevronUp, IconMinus, IconVolume } from "@tabler/icons-react";
+import { IconArrowsMaximize, IconArrowsMinimize, IconChevronUp, IconMessages, IconMinus, IconVolume, IconX } from "@tabler/icons-react";
+import { useRooms } from "../../hooks/rooms.ts";
+import { unreadOf } from "../../lib/chatApi.ts";
+import { ChatPanel } from "../chat/ChatPanel.tsx";
 import { useIsMobile } from "../../hooks/useIsMobile.ts";
 import { initials } from "../../lib/format.ts";
 import { useCall, type ActiveCall } from "./callContext.ts";
@@ -13,6 +17,8 @@ import { ParticipantTile } from "./ParticipantTile.tsx";
 import { useCallTiles, useProfileOf, type Profile, type Tile } from "./useCallTiles.ts";
 
 const DOCK_WIDTH = 320;
+/** The chat column beside the tiles in the full view. */
+const CHAT_WIDTH = 360;
 /** Above page content, just below the app shell (100) so the phone nav drawer covers the call bar. */
 const DOCK_Z = 99;
 
@@ -37,6 +43,34 @@ export function CallSurface({ call }: { call: ActiveCall }) {
         ))}
       <Stage call={call} profileOf={profileOf} opened={view === "full"} onCollapse={() => setView("dock")} onLeave={onLeave} />
     </>
+  );
+}
+
+/** Unread messages in the call's room (the room list is refreshed whenever one arrives). */
+function useCallUnread(roomId: string): number {
+  return unreadOf(useRooms().data?.find(room => room.id === roomId));
+}
+
+/** Opens the room's chat from the call, so people can text while they talk. */
+function ChatToggle({ roomId, open, onToggle, size = 28, light = false }: { roomId: string; open: boolean; onToggle: () => void; size?: number; light?: boolean }) {
+  const unread = useCallUnread(roomId);
+  const label = open ? "Hide chat" : unread > 0 ? `Open chat, ${unread} unread` : "Open chat";
+  return (
+    <Tooltip label={open ? "Hide chat" : "Chat"} withArrow>
+      <Indicator disabled={open || unread === 0} color="red" size={10} offset={4} withBorder processing={false}>
+        <ActionIcon
+          variant={open ? "filled" : light ? "default" : "subtle"}
+          color={open ? "clay" : "gray"}
+          size={size}
+          aria-label={label}
+          aria-pressed={open}
+          onClick={onToggle}
+          data-testid="call-chat-toggle"
+        >
+          <IconMessages size={size * 0.6} />
+        </ActionIcon>
+      </Indicator>
+    </Tooltip>
   );
 }
 
@@ -98,6 +132,7 @@ const fixedCorner = { position: "fixed", right: 16, bottom: 16, zIndex: DOCK_Z }
 /** Desktop: a compact card in the bottom-right corner with a few tiles and the controls. */
 function Dock({ call, profileOf, onExpand, onMinimize, onLeave }: { call: ActiveCall; profileOf: ProfileOf; onExpand: () => void; onMinimize: () => void; onLeave: () => void }) {
   const tiles = useCallTiles();
+  const [chatOpen, setChatOpen] = useState(false);
   const shown = tiles.slice(0, tiles.length > 4 ? 3 : 4);
   const hidden = tiles.length - shown.length;
   const tileHeight = tiles.length <= 2 ? 120 : 84;
@@ -118,6 +153,7 @@ function Dock({ call, profileOf, onExpand, onMinimize, onLeave }: { call: Active
         </Group>
         <Group gap={2} wrap="nowrap">
           <ConnectionBadge />
+          <ChatToggle roomId={call.roomId} open={chatOpen} onToggle={() => setChatOpen(open => !open)} />
           <Tooltip label="Expand call" withArrow>
             <ActionIcon variant="subtle" color="gray" aria-label="Expand call" onClick={onExpand}>
               <IconArrowsMaximize size={16} />
@@ -148,6 +184,22 @@ function Dock({ call, profileOf, onExpand, onMinimize, onLeave }: { call: Active
         <AudioUnblock fullWidth />
         <CallControls onLeave={onLeave} size={38} />
       </Stack>
+
+      {/* A side sheet without a backdrop: keep reading the page (and talking) while you text. */}
+      <Drawer
+        opened={chatOpen}
+        onClose={() => setChatOpen(false)}
+        position="right"
+        size={400}
+        withOverlay={false}
+        lockScroll={false}
+        trapFocus={false}
+        shadow="xl"
+        title={`Chat · ${call.roomName}`}
+        styles={{ content: { display: "flex", flexDirection: "column" }, body: { flex: 1, minHeight: 0, padding: 0 }, title: { fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}
+      >
+        {chatOpen && <ChatPanel roomId={call.roomId} roomName={call.roomName} autoFocus />}
+      </Drawer>
     </Paper>
   );
 }
@@ -228,6 +280,33 @@ function MobileBar({ call, profileOf, onOpen, onLeave }: { call: ActiveCall; pro
 function Stage({ call, profileOf, opened, onCollapse, onLeave }: { call: ActiveCall; profileOf: ProfileOf; opened: boolean; onCollapse: () => void; onLeave: () => void }) {
   const mobile = useIsMobile();
   const count = useParticipants().length;
+  const [chatOpen, setChatOpen] = useState(false);
+  // Phones: the chat takes the tiles' place (audio keeps playing). Desktop: a column beside them.
+  const chat = opened && chatOpen && (
+    <Paper
+      component="section"
+      aria-label={`Chat in ${call.roomName}`}
+      bg="var(--mantine-color-body)"
+      c="var(--mantine-color-text)"
+      radius="lg"
+      w={mobile ? "100%" : CHAT_WIDTH}
+      flex={mobile ? 1 : undefined}
+      mih={0}
+      style={{ flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}
+    >
+      <Group justify="space-between" wrap="nowrap" px="md" pt="sm" pb={4}>
+        <Text fw={600} size="sm">
+          Chat
+        </Text>
+        <ActionIcon variant="subtle" color="gray" aria-label="Close chat" onClick={() => setChatOpen(false)}>
+          <IconX size={16} />
+        </ActionIcon>
+      </Group>
+      <Box flex={1} mih={0}>
+        <ChatPanel roomId={call.roomId} roomName={call.roomName} autoFocus={!mobile} />
+      </Box>
+    </Paper>
+  );
 
   return (
     <Modal.Root opened={opened} onClose={onCollapse} fullScreen transitionProps={{ transition: "fade", duration: 120 }}>
@@ -247,12 +326,28 @@ function Stage({ call, profileOf, opened, onCollapse, onLeave }: { call: ActiveC
               </Stack>
               <ConnectionBadge />
             </Group>
-            <Button variant="default" size="xs" leftSection={<IconArrowsMinimize size={14} />} onClick={onCollapse} style={{ flexShrink: 0 }} data-autofocus>
-              Collapse
-            </Button>
+            <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+              <ChatToggle roomId={call.roomId} open={chatOpen} onToggle={() => setChatOpen(open => !open)} size={30} light />
+              <Button variant="default" size="xs" leftSection={<IconArrowsMinimize size={14} />} onClick={onCollapse} data-autofocus>
+                Collapse
+              </Button>
+            </Group>
           </Group>
 
-          {opened && <StageTiles profileOf={profileOf} mobile={mobile} />}
+          {chat && mobile ? (
+            <Box flex={1} mih={0} px="sm" style={{ display: "flex" }}>
+              {chat}
+            </Box>
+          ) : chat ? (
+            <Box flex={1} mih={0} pr="lg" style={{ display: "flex", gap: 8 }}>
+              <Box flex={1} mih={0} miw={0} style={{ display: "flex", flexDirection: "column" }}>
+                <StageTiles profileOf={profileOf} mobile={mobile} />
+              </Box>
+              {chat}
+            </Box>
+          ) : (
+            opened && <StageTiles profileOf={profileOf} mobile={mobile} />
+          )}
 
           <Stack gap="xs" align="center" px="sm" pt="sm" pb="calc(var(--mantine-spacing-md) + env(safe-area-inset-bottom))">
             <AudioUnblock />

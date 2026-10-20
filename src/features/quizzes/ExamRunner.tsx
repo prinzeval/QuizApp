@@ -9,6 +9,9 @@ import { FinishConfirm, RunnerHeader, focusOption, isActivatable, usePatchAttemp
 import { keyToOption } from "./quizUtils.ts";
 import { isPictureAnswerComplete } from "./PictureQuestion.tsx";
 import { StudyBoardPanel, StudyBoardStrip, useWideBoard } from "./StudyBoard.tsx";
+import { ApiError } from "../../lib/api.ts";
+import { ExamTimer } from "./ExamTimer.tsx";
+import { useQuestionClock } from "./useQuestionClock.ts";
 
 interface ExamRunnerProps {
   roomId: string;
@@ -18,6 +21,8 @@ interface ExamRunnerProps {
   finishing: boolean;
   finishError: string | null;
   onFinish: () => void;
+  /** The time limit ran out (countdown hit zero, or the server refused an answer as late). */
+  onTimeUp: () => void;
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -27,7 +32,7 @@ const TYPE_DEBOUNCE_MS = 700;
  * Exam: answers are saved as you go (and can be changed) but nothing is
  * revealed until you finish. A navigator jumps between questions.
  */
-export function ExamRunner({ roomId, quiz, questions, data, finishing, finishError, onFinish }: ExamRunnerProps) {
+export function ExamRunner({ roomId, quiz, questions, data, finishing, finishError, onFinish, onTimeUp }: ExamRunnerProps) {
   const attemptId = data.attempt.id;
   const answer = useAnswer(roomId, quiz.id, attemptId);
   const patchAttempt = usePatchAttempt(roomId, quiz.id, attemptId);
@@ -46,6 +51,10 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
 
   const question = questions[index];
   const value = responses[question.id] ?? "";
+  // How long each question has been on screen, sent with its answer.
+  const elapsed = useQuestionClock(attemptId, question.id);
+  const deadlineAt = data.attempt.deadlineAt ?? null;
+  const timeUp = useRef(false);
   const spotsOf = (id: string) => questions.find(q => q.id === id)?.figure?.zones?.length ?? 0;
   const typeOf = (id: string) => questions.find(q => q.id === id)?.type ?? "";
   // A half-labelled picture isn't an answer yet.
@@ -61,6 +70,7 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
   const failedRef = useRef(new Map<string, string>());
   const mutateRef = useRef(answer.mutateAsync);
   mutateRef.current = answer.mutateAsync;
+  const timeUpRef = useRef<() => void>(() => {});
 
   const drain = useCallback(async () => {
     let hadError = false;
@@ -69,7 +79,7 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
       queue.current.delete(questionId);
       if (saved.current.get(questionId) === response) continue;
       try {
-        await mutateRef.current({ questionId, response });
+        await mutateRef.current({ questionId, response, timeSpentMs: elapsed(questionId) });
         saved.current.set(questionId, response);
         failedRef.current.delete(questionId);
         patchAttempt({ id: questionId, position: questions.find(q => q.id === questionId)?.position ?? 0, response: response || null });
@@ -78,14 +88,20 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
           const { [questionId]: _, ...rest } = f;
           return rest;
         });
-      } catch {
+      } catch (error) {
+        // "Time's up": the server won't take more answers, so stop and hand in.
+        if (deadlineAt && error instanceof ApiError && error.status === 409) {
+          queue.current.clear();
+          timeUpRef.current();
+          return;
+        }
         hadError = true;
         failedRef.current.set(questionId, response);
         setFailed(f => ({ ...f, [questionId]: response }));
       }
     }
     setSaveState(hadError ? "error" : "saved");
-  }, [patchAttempt, questions]);
+  }, [patchAttempt, questions, elapsed, deadlineAt]);
 
   const startDrain = useCallback(() => {
     if (running.current) return running.current;
@@ -126,6 +142,20 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
     const pending = timers.current;
     return () => pending.forEach(clearTimeout);
   }, []);
+
+  /* ---- time limit ---- */
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  const handleTimeUp = async () => {
+    if (timeUp.current) return;
+    timeUp.current = true;
+    setConfirming(false);
+    setNavOpen(false);
+    // Give the last saves a moment, but never hold up handing in.
+    await Promise.race([flushRef.current().catch(() => undefined), new Promise(resolve => setTimeout(resolve, 2500))]);
+    onTimeUp();
+  };
+  timeUpRef.current = () => void handleTimeUp();
 
   const retryFailed = () => {
     Object.entries(failed).forEach(([questionId, response]) => save(questionId, response));
@@ -226,6 +256,7 @@ export function ExamRunner({ roomId, quiz, questions, data, finishing, finishErr
           <RunnerHeader
             title={quiz.title}
             mode="exam"
+            timer={deadlineAt ? <ExamTimer deadlineAt={deadlineAt} onAlmostUp={() => void flushRef.current()} onExpire={() => void handleTimeUp()} /> : null}
             index={index}
             total={questions.length}
             done={answeredCount}

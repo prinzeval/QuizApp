@@ -8,6 +8,8 @@ import { ApiError } from "./lib/api.ts";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { LoginPage } from "./pages/LoginPage.tsx";
 import { SignupPage } from "./pages/SignupPage.tsx";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.tsx";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage.tsx";
 import { RoomsPage } from "./pages/RoomsPage.tsx";
 import { RoomPage } from "./pages/RoomPage.tsx";
 import { SettingsPage } from "./pages/SettingsPage.tsx";
@@ -16,7 +18,10 @@ import { InvitePage } from "./features/members/InvitePage.tsx";
 import { RealtimeProvider } from "./realtime/RealtimeProvider.tsx";
 
 // The viewer brings pdf.js and the Word renderer; load them only when a file is opened.
+const FlashcardReviewPage = lazy(() => import("./features/flashcards/FlashcardReviewPage.tsx").then(module => ({ default: module.FlashcardReviewPage })));
 const StudioItemPage = lazy(() => import("./features/studio/StudioItemPage.tsx").then(module => ({ default: module.StudioItemPage })));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage.tsx").then(module => ({ default: module.PrivacyPage })));
+const TermsPage = lazy(() => import("./pages/TermsPage.tsx").then(module => ({ default: module.TermsPage })));
 const MaterialViewerPage = lazy(() => import("./features/materials/viewer/MaterialViewerPage.tsx").then(module => ({ default: module.MaterialViewerPage })));
 
 const pageLoader = (
@@ -57,6 +62,14 @@ export function App() {
                 <Route path="/rooms/:roomId" element={<RoomPage />} />
                 <Route path="/rooms/:roomId/quizzes/:quizId" element={<QuizPlayerPage />} />
                 <Route
+                  path="/rooms/:roomId/flashcards/review"
+                  element={
+                    <Suspense fallback={pageLoader}>
+                      <FlashcardReviewPage />
+                    </Suspense>
+                  }
+                />
+                <Route
                   path="/rooms/:roomId/studio/:itemId"
                   element={
                     <Suspense fallback={pageLoader}>
@@ -75,6 +88,25 @@ export function App() {
                 <Route path="/settings/*" element={<SettingsPage />} />
               </Route>
             </Route>
+            {/* Public: work logged in or out (a reset link may be opened in a browser where someone is signed in). */}
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route
+              path="/privacy"
+              element={
+                <Suspense fallback={pageLoader}>
+                  <PrivacyPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/terms"
+              element={
+                <Suspense fallback={pageLoader}>
+                  <TermsPage />
+                </Suspense>
+              }
+            />
             {/* Works logged in or out: shows the room, then log in / sign up / join. */}
             <Route path="/invite/:token" element={<InvitePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

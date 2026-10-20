@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Alert, Anchor, Button, Stack, TextInput } from "@mantine/core";
+import { Alert, Anchor, Button, Group, Stack, Text, TextInput } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useAuth } from "../auth/AuthContext.tsx";
+import { isGoogleOnlyError, redirectTarget } from "../auth/authHelpers.ts";
 import { ApiError, type FieldErrors } from "../lib/api.ts";
+import { notify } from "../notify.ts";
 import { AuthLayout } from "../components/AuthLayout.tsx";
+import { GoogleSignIn } from "../components/GoogleButton.tsx";
 import { PasswordField } from "../components/PasswordField.tsx";
 import { usePageTitle } from "../hooks/usePageTitle.ts";
 
@@ -13,7 +16,7 @@ export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? "/";
+  const from = redirectTarget(location.state);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +25,9 @@ export function LoginPage() {
   // The email that has no account yet, to offer signing up with it.
   const [unknownEmail, setUnknownEmail] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Keep the invite/redirect state and carry over whatever email was typed.
+  const forgotState = { ...(location.state as object | null), email: email.trim() };
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -50,6 +56,18 @@ export function LoginPage() {
     }
   }
 
+  // A Google-only account tried a password: say so, with a way to set one.
+  const passwordError = isGoogleOnlyError(errors.password) ? (
+    <>
+      {errors.password}{" "}
+      <Anchor component={Link} to="/forgot-password" state={forgotState} fz="inherit" fw={600} data-testid="reset-password-link">
+        Reset password
+      </Anchor>
+    </>
+  ) : (
+    errors.password
+  );
+
   return (
     <AuthLayout
       title="Welcome back"
@@ -63,6 +81,17 @@ export function LoginPage() {
         </>
       }
     >
+      <GoogleSignIn
+        onStart={() => {
+          setFormError("");
+          setUnknownEmail("");
+        }}
+        onSignedIn={created => {
+          if (created) notify("Welcome to SmartQuiz!");
+          navigate(from, { replace: true });
+        }}
+        onError={setFormError}
+      />
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
           {unknownEmail && (
@@ -90,14 +119,24 @@ export function LoginPage() {
             error={errors.email}
             autoFocus
           />
-          <PasswordField
-            label="Password"
-            name="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={e => setPassword(e.currentTarget.value)}
-            error={errors.password}
-          />
+          <div>
+            <Group justify="space-between" align="baseline" gap="xs" mb={5} wrap="nowrap">
+              <Text component="label" htmlFor="login-password" size="sm" fw={500}>
+                Password
+              </Text>
+              <Anchor component={Link} to="/forgot-password" state={forgotState} size="sm" fw={500}>
+                Forgot password?
+              </Anchor>
+            </Group>
+            <PasswordField
+              id="login-password"
+              name="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={e => setPassword(e.currentTarget.value)}
+              error={passwordError}
+            />
+          </div>
           <Button type="submit" fullWidth loading={loading} mt="xs">
             Log in
           </Button>

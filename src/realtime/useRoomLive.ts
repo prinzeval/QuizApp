@@ -1,10 +1,47 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import type { Socket } from "socket.io-client";
 import type { Material, PresenceUser } from "../lib/learningApi.ts";
+import type { ChatMessage } from "../lib/chatApi.ts";
 import { queryKeys } from "../hooks/queryKeys.ts";
 import { notify } from "../notify.ts";
+import { upsertChatMessage } from "../features/chat/chatStore.ts";
 import { useSocket } from "./RealtimeProvider.tsx";
+
+/**
+ * How many parts of the page want each room's live channel. Several can at once
+ * (the room page, and the call's chat sheet), so the room is left only when the last one goes.
+ */
+const channelUsers = new WeakMap<Socket, Map<string, number>>();
+
+function acquireChannel(socket: Socket, roomId: string): () => void {
+  const counts = channelUsers.get(socket) ?? new Map<string, number>();
+  channelUsers.set(socket, counts);
+  const join = () => socket.emit("room:join", { roomId });
+  counts.set(roomId, (counts.get(roomId) ?? 0) + 1);
+  // Joining twice is harmless, and every user rejoins after a reconnect.
+  socket.on("connect", join);
+  if (socket.connected) join();
+  return () => {
+    socket.off("connect", join);
+    const left = (counts.get(roomId) ?? 1) - 1;
+    if (left > 0) counts.set(roomId, left);
+    else {
+      counts.delete(roomId);
+      socket.emit("room:leave", { roomId });
+    }
+  };
+}
+
+/** Keeps the socket in a room's channel while mounted, without the room page's other live updates. */
+export function useRoomChannel(roomId: string | null | undefined): void {
+  const socket = useSocket();
+  useEffect(() => {
+    if (!socket || !roomId) return;
+    return acquireChannel(socket, roomId);
+  }, [socket, roomId]);
+}
 
 /**
  * Subscribes to a room while its page is open: joins the room's channel (again
@@ -20,7 +57,6 @@ export function useRoomLive(roomId: string): PresenceUser[] {
   useEffect(() => {
     if (!socket || !roomId) return;
 
-    const join = () => socket.emit("room:join", { roomId });
     const mine = <T extends { roomId?: string }>(handler: (payload: T) => void) => (payload: T) => payload.roomId === roomId && handler(payload);
 
     const onPresence = mine(({ users }: { roomId: string; users: PresenceUser[] }) => setPresent(users));
@@ -65,8 +101,12 @@ export function useRoomLive(roomId: string): PresenceUser[] {
       queryClient.invalidateQueries({ queryKey: queryKeys.studioItem(roomId, itemId), exact: true });
     });
 
-    socket.on("connect", join);
+    // New, edited or deleted chat messages: keep a loaded chat current even while its tab is closed.
+    const onChatMessage = mine(({ message }: { roomId: string; message: ChatMessage }) => upsertChatMessage(queryClient, roomId, message));
+
+    const release = acquireChannel(socket, roomId);
     socket.on("room:presence", onPresence);
+    socket.on("chat:message", onChatMessage);
     socket.on("room:updated", onRoom);
     socket.on("member:joined", onRoom);
     socket.on("member:left", onRoom);
@@ -78,12 +118,11 @@ export function useRoomLive(roomId: string): PresenceUser[] {
     socket.on("quiz:board", onQuizBoard);
     socket.on("studio:updated", onStudio);
     socket.on("studio:deleted", onStudio);
-    if (socket.connected) join();
 
     return () => {
-      socket.emit("room:leave", { roomId });
-      socket.off("connect", join);
+      release();
       socket.off("room:presence", onPresence);
+      socket.off("chat:message", onChatMessage);
       socket.off("room:updated", onRoom);
       socket.off("member:joined", onRoom);
       socket.off("member:left", onRoom);

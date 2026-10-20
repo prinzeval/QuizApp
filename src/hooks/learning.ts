@@ -152,8 +152,8 @@ export function useAttempt(roomId: string, quizId: string, attemptId: string | n
 export function useAnswer(roomId: string, quizId: string, attemptId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ questionId, response }: { questionId: string; response: string }) =>
-      learningApi.answer(roomId, quizId, attemptId, questionId, response),
+    mutationFn: ({ questionId, response, timeSpentMs }: { questionId: string; response: string; timeSpentMs?: number }) =>
+      learningApi.answer(roomId, quizId, attemptId, questionId, response, timeSpentMs),
     // Your own row moves on the board straight away (the live event may lag or not echo back).
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.quizBoard(roomId, quizId), exact: true }),
   });
@@ -168,7 +168,23 @@ export function useCompleteAttempt(roomId: string, quizId: string, attemptId: st
       queryClient.invalidateQueries({ queryKey: queryKeys.quizzes(roomId), exact: true });
       queryClient.invalidateQueries({ queryKey: queryKeys.progress(roomId), exact: true });
       queryClient.invalidateQueries({ queryKey: queryKeys.quizBoard(roomId, quizId), exact: true });
+      // A finished attempt can add (or clear) mistakes to review.
+      queryClient.invalidateQueries({ queryKey: queryKeys.quizMistakes(roomId), exact: true });
     },
+  });
+}
+
+/** How many questions I last got wrong in this room, by topic. */
+export function useQuizMistakes(roomId: string) {
+  return useQuery({ queryKey: queryKeys.quizMistakes(roomId), queryFn: () => learningApi.quizMistakes(roomId), retry: false });
+}
+
+/** Makes a private quiz from my mistakes (resolves with it, ready to take). */
+export function useCreateMistakesQuiz(roomId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { count?: number; topic?: string }) => learningApi.createMistakesQuiz(roomId, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.quizzes(roomId), exact: true }),
   });
 }
 

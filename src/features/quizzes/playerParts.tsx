@@ -58,6 +58,7 @@ export function RunnerHeader({
   total,
   done,
   right,
+  timer,
 }: {
   title: string;
   mode: QuizMode;
@@ -66,6 +67,8 @@ export function RunnerHeader({
   /** How many questions are answered, for the progress bar. */
   done: number;
   right?: ReactNode;
+  /** The exam countdown, beside the mode badge. */
+  timer?: ReactNode;
 }) {
   return (
     <Stack gap={10} mb="xl">
@@ -74,6 +77,7 @@ export function RunnerHeader({
           <Badge variant="light" color={mode === "exam" ? "grape" : "clay"} style={{ flexShrink: 0 }}>
             {MODE_LABEL[mode]}
           </Badge>
+          {timer}
           <Text size="sm" c="dimmed" truncate visibleFrom="sm">
             {title}
           </Text>

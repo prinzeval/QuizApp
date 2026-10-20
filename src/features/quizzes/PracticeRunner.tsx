@@ -10,6 +10,7 @@ import { FinishConfirm, RunnerHeader, focusOption, isActivatable, usePatchAttemp
 import { correctText, isReview, keyToOption } from "./quizUtils.ts";
 import { isPictureAnswerComplete } from "./PictureQuestion.tsx";
 import { StudyBoardPanel, StudyBoardStrip, useWideBoard } from "./StudyBoard.tsx";
+import { useQuestionClock } from "./useQuestionClock.ts";
 
 interface PracticeRunnerProps {
   roomId: string;
@@ -45,6 +46,7 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
 
   const question = questions[index];
   const review = reviews[question.id] ?? null;
+  const elapsed = useQuestionClock(attemptId, question.id);
   const value = review ? review.response ?? "" : drafts[question.id] ?? "";
   const answeredCount = Object.keys(reviews).length;
   const correctCount = Object.values(reviews).filter(r => r.isCorrect).length;
@@ -77,7 +79,7 @@ export function PracticeRunner({ roomId, quiz, questions, data, finishing, finis
     const response = value.trim();
     if (!response || !complete) return;
     answer.mutate(
-      { questionId: question.id, response },
+      { questionId: question.id, response, timeSpentMs: elapsed(question.id) },
       {
         onSuccess: result => {
           if (!result.review) return;

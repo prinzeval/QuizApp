@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import { ActionIcon, Avatar, Badge, Button, Card, Group, Loader, Menu, RingProgress, Skeleton, Stack, Text, Title, Tooltip } from "@mantine/core";
-import { IconAlertTriangle, IconDots, IconPlayerPlay, IconRefresh, IconRotate, IconTrash } from "@tabler/icons-react";
+import { IconAlertTriangle, IconClock, IconDots, IconLock, IconPlayerPlay, IconRefresh, IconRotate, IconTrash } from "@tabler/icons-react";
 import type { QuizSummary } from "../../lib/learningApi.ts";
 import { initials, plural, timeAgo } from "../../lib/format.ts";
 import { useAuth } from "../../auth/AuthContext.tsx";
 import { DIFFICULTY_COLOR, DIFFICULTY_LABEL, TYPE_LABEL, scoreColor } from "./quizUtils.ts";
+import { timeLimitLabel } from "./quizTime.ts";
 
 interface QuizCardProps {
   quiz: QuizSummary;
@@ -45,6 +46,18 @@ export function QuizCard({ quiz, roomId, canManage, isMine, retrying, onRetry, o
               <Badge size="sm" variant="light" color={DIFFICULTY_COLOR[quiz.difficulty]}>
                 {DIFFICULTY_LABEL[quiz.difficulty]}
               </Badge>
+            )}
+            {quiz.timeLimitMinutes ? (
+              <Badge size="sm" variant="light" color="grape" leftSection={<IconClock size={12} aria-hidden="true" />} tt="none" data-testid="quiz-card-timed">
+                {timeLimitLabel(quiz.timeLimitMinutes)}
+              </Badge>
+            ) : null}
+            {quiz.isPrivate && (
+              <Tooltip label="Private: nobody else in the room sees this quiz" withArrow>
+                <Badge size="sm" variant="default" leftSection={<IconLock size={12} aria-hidden="true" />} tt="none" data-testid="quiz-card-private">
+                  Only you
+                </Badge>
+              </Tooltip>
             )}
           </Group>
           <Title order={3} lineClamp={2} data-testid="quiz-card-title" style={{ overflowWrap: "anywhere" }}>

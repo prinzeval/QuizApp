@@ -10,6 +10,10 @@ export const queryKeys = {
   attempt: (roomId: string, quizId: string, attemptId: string) => ["rooms", roomId, "quizzes", quizId, "attempts", attemptId] as const,
   // Under the quiz key, so a (non-exact) quiz invalidation refreshes the board too.
   quizBoard: (roomId: string, quizId: string) => ["rooms", roomId, "quizzes", quizId, "board"] as const,
+  // Beside "quizzes" (not under it), so it can't be mistaken for a quiz id.
+  quizMistakes: (roomId: string) => ["rooms", roomId, "quizMistakes"] as const,
+  // Pages of room chat (infinite query, newest page first).
+  messages: (roomId: string) => ["rooms", roomId, "messages"] as const,
   studio: (roomId: string) => ["rooms", roomId, "studio"] as const,
   studioItem: (roomId: string, itemId: string) => ["rooms", roomId, "studio", itemId] as const,
   // Pictures from Word/PowerPoint files never change either.

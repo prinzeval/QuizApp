@@ -11,6 +11,7 @@ import { plural } from "../../lib/format.ts";
 import { notify } from "../../notify.ts";
 import { NewQuizForm } from "./NewQuizForm.tsx";
 import { QuizCard } from "./QuizCard.tsx";
+import { MistakesReview } from "./MistakesReview.tsx";
 
 export function QuizzesTab({ room }: { room: Room }) {
   const { user } = useAuth();
@@ -55,6 +56,8 @@ export function QuizzesTab({ room }: { room: Room }) {
         </div>
         {list.length > 0 && newQuizButton}
       </Group>
+
+      <MistakesReview roomId={room.id} />
 
       {quizzes.isPending ? (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md" aria-busy="true" aria-label="Loading quizzes">

@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { Badge, Box, Button, Card, Group, Progress, RingProgress, SegmentedControl, Stack, Text, ThemeIcon, Title } from "@mantine/core";
-import { IconArrowLeft, IconCheck, IconMinus, IconRotate, IconSchool, IconX } from "@tabler/icons-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Alert, Badge, Box, Button, Card, Group, Progress, RingProgress, SegmentedControl, Stack, Text, ThemeIcon, Title } from "@mantine/core";
+import { IconArrowLeft, IconCheck, IconClock, IconClockStop, IconMinus, IconRotate, IconSchool, IconTargetArrow, IconX } from "@tabler/icons-react";
+import { useCreateMistakesQuiz } from "../../hooks/learning.ts";
+import { notify } from "../../notify.ts";
+import { formatDuration, totalTimeMs } from "./quizTime.ts";
 import { Scribble } from "../../components/Doodles.tsx";
 import type { QuestionReview, QuizAttempt, QuizMode } from "../../lib/learningApi.ts";
 import { formatDate } from "../../lib/format.ts";
@@ -19,9 +22,11 @@ interface ResultsProps {
   reviews: QuestionReview[];
   starting: QuizMode | null;
   onStart: (mode: QuizMode) => void;
+  /** The time limit ran out on this page (the server's `autoSubmitted` covers the rest). */
+  timedOut?: boolean;
 }
 
-export function Results({ roomId, quizId, attempt, reviews, starting, onStart }: ResultsProps) {
+export function Results({ roomId, quizId, attempt, reviews, starting, onStart, timedOut = false }: ResultsProps) {
   const correct = attempt.correctCount ?? reviews.filter(r => r.isCorrect).length;
   const total = attempt.totalCount ?? reviews.length;
   const score = percent(correct, total);
@@ -31,6 +36,22 @@ export function Results({ roomId, quizId, attempt, reviews, starting, onStart }:
   const [filter, setFilter] = useState<"all" | "missed">("all");
   const shown = filter === "missed" ? missed : reviews;
   const otherMode: QuizMode = attempt.mode === "exam" ? "practice" : "exam";
+  const totalTime = totalTimeMs(reviews);
+  const autoSubmitted = timedOut || !!attempt.autoSubmitted;
+  const wrong = reviews.filter(r => r.isCorrect === false && r.response !== null).length;
+  const practiceMistakes = useCreateMistakesQuiz(roomId);
+  const navigate = useNavigate();
+  const startMistakes = () =>
+    practiceMistakes.mutate(
+      {},
+      {
+        onSuccess: ({ quiz }) => {
+          notify(`Made "${quiz.title}" from your mistakes. Only you can see it.`);
+          navigate(`/rooms/${roomId}/quizzes/${quiz.id}`);
+        },
+        onError: error => notify(error.message, "error"),
+      },
+    );
 
   // Land focus on the result so screen readers hear it.
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -41,6 +62,11 @@ export function Results({ roomId, quizId, attempt, reviews, starting, onStart }:
 
   return (
     <Stack gap="xl">
+      {autoSubmitted && (
+        <Alert color="grape" variant="light" icon={<IconClockStop size={18} />} title="Time's up — submitted automatically" data-testid="auto-submitted">
+          The time limit ran out, so your exam was handed in with the answers you'd saved. Questions you hadn't answered count as wrong.
+        </Alert>
+      )}
       <Card padding="xl" data-testid="results">
         <Stack align="center" gap="md" ta="center">
           <RingProgress
@@ -70,6 +96,11 @@ export function Results({ roomId, quizId, attempt, reviews, starting, onStart }:
             </Text>
             <Text size="xs" c="dimmed" mt="sm">
               {MODE_LABEL[attempt.mode]} · {formatDate(attempt.completedAt ?? attempt.startedAt)}
+              {totalTime !== null && (
+                <span data-testid="total-time">
+                  {" "}· {formatDuration(totalTime)} in total
+                </span>
+              )}
             </Text>
           </div>
           <Group justify="center" gap="sm" mt="xs">
@@ -85,6 +116,17 @@ export function Results({ roomId, quizId, attempt, reviews, starting, onStart }:
             >
               {otherMode === "practice" ? "Practice again" : "Try exam mode"}
             </Button>
+            {wrong > 0 && (
+              <Button
+                variant="default"
+                leftSection={<IconTargetArrow size={16} />}
+                onClick={startMistakes}
+                loading={practiceMistakes.isPending}
+                data-testid="practice-mistakes"
+              >
+                Practice these mistakes
+              </Button>
+            )}
             <Button component={Link} to={`/rooms/${roomId}?tab=quizzes`} variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />}>
               Back to quizzes
             </Button>
@@ -177,6 +219,14 @@ function ReviewItem({ roomId, review, number }: { roomId: string; review: Questi
             <Text size="xs" c="dimmed">
               {TYPE_LABEL[review.type]}
             </Text>
+            {typeof review.timeSpentMs === "number" && (
+              <Group gap={3} wrap="nowrap" c="dimmed" data-testid="question-time" aria-label={`Time on this question: ${formatDuration(review.timeSpentMs)}`}>
+                <IconClock size={12} aria-hidden="true" />
+                <Text size="xs" c="inherit" aria-hidden="true">
+                  {formatDuration(review.timeSpentMs)}
+                </Text>
+              </Group>
+            )}
           </Group>
           <Text fw={600} style={{ overflowWrap: "anywhere" }}>
             {review.type === "fill_blank" ? <BlankPrompt prompt={review.prompt} value="" review={null} /> : review.prompt}

@@ -1,4 +1,4 @@
-import { IconHierarchy2, IconListCheck, IconPhoto } from "@tabler/icons-react";
+import { IconCards, IconHierarchy2, IconListCheck, IconPhoto } from "@tabler/icons-react";
 import type { StudioKind } from "../../lib/learningApi.ts";
 
 /** What each Studio tool is called and how it looks. The quiz tile opens the quiz form. */
@@ -26,4 +26,12 @@ export const QUIZ_TOOL = {
   description: "Questions from your notes, including ones on their pictures.",
   icon: IconListCheck,
   color: "clay",
+};
+
+/** Opens the "Make flashcards" form; the deck shows up in the Flashcards tab. */
+export const FLASHCARDS_TOOL = {
+  label: "Flashcards",
+  description: "Spaced-repetition cards from your notes, scheduled for you.",
+  icon: IconCards,
+  color: "orange",
 };

@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
+  Anchor,
   Box,
   Button,
   Card,
@@ -16,8 +17,9 @@ import {
   Title,
 } from "@mantine/core";
 import { Dropzone, type FileRejection } from "@mantine/dropzone";
-import { IconAlertCircle, IconAlertTriangle, IconCamera, IconKey, IconSettings, IconUser } from "@tabler/icons-react";
+import { IconAlertCircle, IconAlertTriangle, IconBrandGoogleFilled, IconCamera, IconKey, IconSettings, IconUser } from "@tabler/icons-react";
 import { useAuth } from "../auth/AuthContext.tsx";
+import { validateNewPassword } from "../auth/authHelpers.ts";
 import { useRooms } from "../hooks/rooms.ts";
 import { api, ApiError, type FieldErrors } from "../lib/api.ts";
 import { formatDate } from "../lib/format.ts";
@@ -235,6 +237,18 @@ function ProfileSection() {
               description="Your email is used to log in and can't be changed yet."
               inputWrapperOrder={["label", "input", "description", "error"]}
             />
+            {user.hasPassword === false && (
+              <Group gap={8} wrap="nowrap" data-testid="google-note">
+                <IconBrandGoogleFilled size={16} aria-hidden="true" style={{ flexShrink: 0, color: "var(--mantine-color-dimmed)" }} />
+                <Text size="sm" c="dimmed">
+                  Signed in with Google.{" "}
+                  <Anchor component={Link} to="/settings/security" inherit fw={500}>
+                    Set a password
+                  </Anchor>{" "}
+                  to also log in with your email.
+                </Text>
+              </Group>
+            )}
             <Group justify="space-between" gap="sm" mt="xs">
               <Text size="xs" c="dimmed">
                 Member since {formatDate(user.createdAt)}
@@ -269,7 +283,9 @@ function ProfileSection() {
 /* --------------------------------------------------------------- security */
 
 function SecuritySection() {
-  const { replaceToken } = useAuth();
+  const { user, replaceToken, updateUser } = useAuth();
+  // Google-only accounts have no password yet: they set one, without a "current password".
+  const settingFirst = user?.hasPassword === false;
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -278,21 +294,24 @@ function SecuritySection() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const local: FieldErrors = {};
-    if (!currentPassword) local.currentPassword = "Enter your current password";
-    if (newPassword.length < 8) local.newPassword = "Password must be at least 8 characters";
-    if (confirmPassword !== newPassword) local.confirmPassword = "Passwords don't match";
+    const local: FieldErrors = validateNewPassword(newPassword, confirmPassword, { password: "newPassword", confirm: "confirmPassword" });
+    if (!settingFirst && !currentPassword) local.currentPassword = "Enter your current password";
     setErrors(local);
     if (Object.keys(local).length) return;
 
     setSaving(true);
     try {
-      const { token } = await api.changePassword({ currentPassword, newPassword });
+      const { token } = await api.changePassword(settingFirst ? { newPassword } : { currentPassword, newPassword });
       replaceToken(token);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      notify("Password changed. You've been logged out everywhere else.");
+      if (settingFirst && user) {
+        updateUser({ ...user, hasPassword: true });
+        notify("Password set. You can now log in with your email too.");
+      } else {
+        notify("Password changed. You've been logged out everywhere else.");
+      }
     } catch (error) {
       if (error instanceof ApiError && Object.keys(error.fieldErrors).length) setErrors(error.fieldErrors);
       else notify(error instanceof Error ? error.message : "Couldn't change your password.", "error");
@@ -302,17 +321,28 @@ function SecuritySection() {
   }
 
   return (
-    <SectionCard title="Change password" description="After you change it, any other device logged into your account will be signed out.">
+    <SectionCard
+      title={settingFirst ? "Set a password" : "Change password"}
+      description={
+        settingFirst
+          ? "You sign in with Google. Add a password to also log in with your email and password. Google sign-in keeps working."
+          : "After you change it, any other device logged into your account will be signed out."
+      }
+    >
       <form onSubmit={submit} noValidate>
         <Stack gap="md" maw={420}>
-          <PasswordField
-            label="Current password"
-            name="currentPassword"
-            autoComplete="current-password"
-            value={currentPassword}
-            onChange={e => setCurrentPassword(e.currentTarget.value)}
-            error={errors.currentPassword}
-          />
+          {/* Lets password managers save the new password against the right account. */}
+          <input type="email" name="username" autoComplete="username" value={user?.email ?? ""} readOnly hidden />
+          {!settingFirst && (
+            <PasswordField
+              label="Current password"
+              name="currentPassword"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.currentTarget.value)}
+              error={errors.currentPassword}
+            />
+          )}
           <div>
             <PasswordField
               label="New password"
@@ -334,7 +364,7 @@ function SecuritySection() {
           />
           <Group mt="xs">
             <Button type="submit" loading={saving}>
-              Change password
+              {settingFirst ? "Set password" : "Change password"}
             </Button>
           </Group>
         </Stack>
@@ -349,28 +379,32 @@ function AccountSection() {
   const { user, logout } = useAuth();
   const rooms = useRooms();
   const [confirming, setConfirming] = useState(false);
+  // A password account confirms with its password; a Google-only account types DELETE.
   const [password, setPassword] = useState("");
+  const [typed, setTyped] = useState("");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
 
   if (!user) return null;
   const ownedRooms = rooms.data?.filter(room => room.role === "owner") ?? [];
+  const passwordless = user.hasPassword === false;
+  const typedDelete = typed.trim() === "DELETE";
 
   async function deleteAccount(event: FormEvent) {
     event.preventDefault();
-    if (!password) {
-      setError("Enter your password to confirm");
+    if (passwordless ? !typedDelete : !password) {
+      setError(passwordless ? "Enter DELETE to confirm" : "Enter your password to confirm");
       return;
     }
     setDeleting(true);
     setError("");
     try {
-      await api.deleteAccount({ password });
+      await api.deleteAccount(passwordless ? { confirm: "DELETE" } : { password });
       // Logging out sends the user to the login page (RequireAuth).
       logout();
       notify("Your account has been deleted.", "info");
     } catch (err) {
-      if (err instanceof ApiError && err.fieldErrors.password) setError(err.fieldErrors.password);
+      if (err instanceof ApiError && (err.fieldErrors.password || err.fieldErrors.confirm)) setError((err.fieldErrors.password ?? err.fieldErrors.confirm)!);
       else setError(err instanceof Error ? err.message : "Couldn't delete your account.");
       setDeleting(false);
     }
@@ -379,11 +413,16 @@ function AccountSection() {
   const closeConfirm = () => {
     setConfirming(false);
     setPassword("");
+    setTyped("");
     setError("");
   };
 
+  // Errors about what was typed show on the field; anything else goes in an alert.
+  const fieldError = error.startsWith("Incorrect") || error.startsWith("Enter") || /DELETE/.test(error);
+
   const details: [string, string][] = [
     ["Email", user.email],
+    ["Sign-in", passwordless ? "Google" : "Email and password"],
     ["Member since", formatDate(user.createdAt)],
     ["Study rooms", rooms.data ? `${rooms.data.length} (you own ${ownedRooms.length})` : "…"],
   ];
@@ -448,25 +487,43 @@ function AccountSection() {
                 </List>
               </Alert>
             )}
-            {error && !error.startsWith("Incorrect") && !error.startsWith("Enter") && (
+            {error && !fieldError && (
               <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert">
                 {error}
               </Alert>
             )}
-            <PasswordField
-              label="Enter your password to confirm"
-              name="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={e => setPassword(e.currentTarget.value)}
-              error={error.startsWith("Incorrect") || error.startsWith("Enter") ? error : undefined}
-              data-autofocus
-            />
+            {passwordless ? (
+              <TextInput
+                label={
+                  <>
+                    Type <strong>DELETE</strong> to confirm
+                  </>
+                }
+                name="confirm"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                value={typed}
+                onChange={e => setTyped(e.currentTarget.value)}
+                error={fieldError ? error : undefined}
+                data-autofocus
+              />
+            ) : (
+              <PasswordField
+                label="Enter your password to confirm"
+                name="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={e => setPassword(e.currentTarget.value)}
+                error={fieldError ? error : undefined}
+                data-autofocus
+              />
+            )}
             <Group justify="flex-end" gap="sm" mt="xs">
-              <Button variant="default" onClick={() => setConfirming(false)} disabled={deleting}>
+              <Button variant="default" onClick={closeConfirm} disabled={deleting}>
                 Cancel
               </Button>
-              <Button type="submit" color="red" loading={deleting}>
+              <Button type="submit" color="red" loading={deleting} disabled={passwordless && !typedDelete}>
                 Delete account
               </Button>
             </Group>
